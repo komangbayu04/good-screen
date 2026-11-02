@@ -1,0 +1,301 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-sans-ui), system-ui, sans-serif;
+  --font-mono: var(--font-mono-ui), ui-monospace, monospace;
+
+  /* Glass UI over a photo: panels are tinted dark glass, inner fills are light tints of it. */
+  --color-bg: #0b0e14;
+  --color-panel: rgb(14 17 24 / 0.62);
+  --color-panel-2: rgb(255 255 255 / 0.07);
+  --color-panel-3: rgb(255 255 255 / 0.13);
+  --color-line: rgb(255 255 255 / 0.16);
+  --color-fg: #f4f5f7;
+  /* Brighter than on a flat dark UI: it sits on blurred, sometimes bright glass. */
+  --color-muted: #aeb2bd;
+  /* Hairlines and faint fills (tinted overlays on dark surfaces). */
+  --color-ink: #ffffff;
+  /* Primary: brand + the main action on screen (Export, Send, upload, playhead). */
+  --color-accent: #ff6b1a;
+  --color-accent-2: #ff9a4d;
+  --color-on-accent: #ffffff;
+  /* Secondary: selection and state (selected clip, active chips/toggles, focus, progress). */
+  --color-secondary: #6ea8fe;
+  --color-on-secondary: #0b1424;
+
+  /* UI type scale (dense pro tool): badge 10, meta 11, body 13, title 15. */
+  --text-2xs: 0.625rem;
+  --text-2xs--line-height: 0.875rem;
+  --text-meta: 0.6875rem;
+  --text-meta--line-height: 1rem;
+  --text-ui: 0.8125rem;
+  --text-ui--line-height: 1.25rem;
+  --text-title: 0.9375rem;
+  --text-title--line-height: 1.375rem;
+
+  --color-track-video: rgb(255 255 255 / 0.06);
+  --color-track-motion: rgb(255 120 40 / 0.14);
+  --color-track-caption: rgb(255 255 255 / 0.06);
+  --color-track-audio: rgb(255 255 255 / 0.06);
+}
+
+:root {
+  color-scheme: dark;
+  /* Strong custom curves; the built-in CSS easings are too weak. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+
+html,
+body {
+  height: 100%;
+  color: var(--color-fg);
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/*
+ * The app sits on a landscape photo. A scrim darkens it most where text sits on it
+ * directly (the header against the bright sky) and where the bright reflection is.
+ */
+html {
+  background: var(--color-bg);
+}
+body {
+  background: linear-gradient(180deg, rgb(6 9 16 / 0.5) 0%, rgb(6 9 16 / 0.22) 30%, rgb(6 9 16 / 0.3) 60%, rgb(6 9 16 / 0.5) 100%);
+}
+/* The photo, softly blurred so it reads as atmosphere, not content. Scaled up so the
+   blur never shows soft edges. Paints under body's scrim (negative z-index). */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: url("/bg-mountains.webp") center / cover no-repeat;
+  filter: blur(2px);
+  transform: scale(1.02);
+  pointer-events: none;
+}
+
+/* Frosted glass for anything that floats or sits on the photo; pairs with a translucent bg. */
+.frost {
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  backdrop-filter: blur(28px) saturate(160%);
+}
+
+button {
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* Press feedback on pointer-down, animated both ways. Uses the standalone `scale`
+   property so it never fights Tailwind's translate utilities. */
+button:not(:disabled) {
+  transition-property: scale, color, background-color, border-color, opacity, box-shadow, filter !important;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+button:not(:disabled):active {
+  scale: 0.96;
+}
+button[data-no-press]:active {
+  scale: none;
+}
+
+/* Icon stroke tracks the 400–500 weight of the text beside it. */
+svg.lucide[stroke-width="2"] {
+  stroke-width: 1.75;
+}
+
+/* A faster spinner makes waiting feel shorter. */
+.animate-spin {
+  animation-duration: 750ms;
+}
+
+/* Size-specific tracking: tighten headings, open up tiny UI text a touch. */
+h1,
+h2,
+h3 {
+  letter-spacing: -0.012em;
+}
+.text-2xs,
+.text-meta {
+  letter-spacing: 0.012em;
+}
+
+/* Inputs at 16px prevent iOS zoom-on-focus. */
+input,
+textarea,
+select {
+  font-size: 16px;
+}
+@media (min-width: 1024px) {
+  input,
+  textarea,
+  select {
+    font-size: 14px;
+  }
+}
+
+/*
+ * Primary fill: liquid brand orange, the same material as the logo. Layers, top to
+ * bottom: a gloss lens over the upper half, a warm glow pooling at the bottom, and the
+ * light-to-deep orange body; a bright rim on top and a soft orange glow underneath.
+ */
+.bg-accent-grad {
+  background-color: var(--color-accent);
+  background-image:
+    linear-gradient(180deg, rgb(255 255 255 / 0.42) 0%, rgb(255 255 255 / 0.08) 48%, transparent 52%),
+    radial-gradient(120% 70% at 50% 110%, rgb(255 226 196 / 0.55), transparent 70%),
+    linear-gradient(180deg, #ffb070 0%, #ff6b1a 50%, #d9430a 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.6),
+    inset 0 0 0 1px rgb(255 255 255 / 0.14),
+    inset 0 -1px 0 rgb(255 255 255 / 0.25),
+    0 6px 16px -6px rgb(255 107 26 / 0.55);
+  text-shadow: 0 1px 1px rgb(120 35 0 / 0.35);
+}
+@media (hover: hover) {
+  .bg-accent-grad:hover {
+    filter: brightness(1.06) saturate(1.05);
+  }
+}
+
+/* Frosted control pills floating over the preview. */
+.glass {
+  background: rgb(20 20 22 / 0.55);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  /* bright top edge = light catching the material */
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.12),
+    0 8px 24px -12px rgb(0 0 0 / 0.6);
+}
+
+/* Inspector slider: thin track, filled part in the foreground colour, pill thumb (CapCut-like). */
+.range-field {
+  appearance: none;
+  height: 16px;
+  background: transparent;
+  cursor: pointer;
+}
+.range-field::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--color-fg) var(--fill), color-mix(in oklab, var(--color-ink) 14%, transparent) var(--fill));
+}
+.range-field::-moz-range-track {
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--color-fg) var(--fill), color-mix(in oklab, var(--color-ink) 14%, transparent) var(--fill));
+}
+.range-field::-webkit-slider-thumb {
+  appearance: none;
+  width: 10px;
+  height: 16px;
+  margin-top: -7px;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(0 0 0 / 0.08);
+}
+.range-field::-moz-range-thumb {
+  width: 10px;
+  height: 16px;
+  border: 0;
+  border-radius: 4px;
+  background: #fff;
+}
+.range-field:focus-visible {
+  outline: none;
+}
+.range-field:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
+/* Scroll edge effect instead of hard dividers: content fades where it meets the chrome. */
+.scroll-fade {
+  overscroll-behavior: contain;
+  mask-image: linear-gradient(to bottom, transparent, #000 14px, #000 calc(100% - 14px), transparent);
+}
+
+/* Floating cards: glass surface, a hairline top highlight for depth. */
+.card-glow {
+  background: var(--color-panel);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  backdrop-filter: blur(28px) saturate(160%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1);
+}
+
+/*
+ * Every top-level panel (timeline, recorder, right panel) is the same pane of frosted
+ * glass: they sit side by side on one plane, so one stroke, one light-catching top edge,
+ * and the same soft shadow under all of them.
+ */
+.surface {
+  background: var(--color-panel);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  backdrop-filter: blur(28px) saturate(160%);
+  border-radius: 22px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.12),
+    0 20px 50px -24px rgb(0 0 0 / 0.55);
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a40 transparent;
+}
+
+@media (hover: hover) {
+  .hover-surface:hover {
+    background: var(--color-panel-3);
+  }
+}
+
+/* Reduced motion keeps feedback, swaps movement for short cross-fades. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+  button:not(:disabled):active {
+    scale: none;
+  }
+  .motion-slide {
+    transform: none !important;
+    transition: opacity 180ms ease !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --color-panel: rgb(17 19 25 / 0.97);
+  }
+  .glass {
+    background: rgb(28 28 31 / 0.97);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --color-muted: #c4c7cf;
+    --color-line: rgb(255 255 255 / 0.4);
+    --color-panel: rgb(10 12 17 / 0.92);
+  }
+  .glass {
+    background: rgb(12 12 14 / 0.96);
+    border-color: rgb(255 255 255 / 0.45);
+  }
+}

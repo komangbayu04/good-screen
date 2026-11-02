@@ -1,0 +1,34 @@
+{
+  "name": "@goodscreen/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@goodscreen/editor-core": "*",
+    "@goodscreen/motion": "*",
+    "@goodscreen/ui": "*",
+    "@remotion/player": "4.0.536",
+    "@remotion/web-renderer": "^4.0.536",
+    "idb-keyval": "^6.2.1",
+    "lucide-react": "^0.511.0",
+    "nanoid": "^5.1.5",
+    "next": "16.4.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "remotion": "4.0.536",
+    "zustand": "^5.0.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.7",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "tailwindcss": "^4.1.7",
+    "typescript": "^5.8.3"
+  }
+}

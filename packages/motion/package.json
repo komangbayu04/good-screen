@@ -1,0 +1,23 @@
+{
+  "name": "@goodscreen/motion",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@goodscreen/editor-core": "*",
+    "@remotion/media": "^4.0.536",
+    "remotion": "4.0.536"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./templates": "./src/templates.ts"
+  }
+}
