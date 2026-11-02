@@ -32,6 +32,7 @@ export function BackgroundTab({ clip }: { clip: Clip }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const set = (screen: ScreenPatch) => dispatch([screenPatch(clip.id, screen)]);
   const bg = style.background;
+  const tracked = useEditor((s) => !!s.project.assets.find((a) => a.id === clip.assetId)?.cursor?.length);
 
   const uploadImage = async (file: File) => {
     const asset = await fileToAsset(file);
@@ -97,10 +98,20 @@ export function BackgroundTab({ clip }: { clip: Clip }) {
           />
         </div>
       </Section>
-      <Section title="Bingkai" icon={Frame} onReset={() => set({ padding: DEFAULT_SCREEN_STYLE.padding, radius: DEFAULT_SCREEN_STYLE.radius, shadow: DEFAULT_SCREEN_STYLE.shadow })}>
+      <Section
+        title="Bingkai"
+        icon={Frame}
+        onReset={() => set({ padding: DEFAULT_SCREEN_STYLE.padding, radius: DEFAULT_SCREEN_STYLE.radius, shadow: DEFAULT_SCREEN_STYLE.shadow, reframe: DEFAULT_SCREEN_STYLE.reframe })}
+      >
         <SliderField label="Jarak tepi" value={style.padding} min={0} max={20} step={0.5} decimals={1} suffix="%" toCommand={(v) => screenPatch(clip.id, { padding: v })} />
         <SliderField label="Sudut" value={style.radius} min={0} max={60} suffix="px" toCommand={(v) => screenPatch(clip.id, { radius: v })} />
         <SliderField label="Bayangan" value={Math.round(style.shadow * 100)} min={0} max={100} suffix="%" toCommand={(v) => screenPatch(clip.id, { shadow: v / 100 })} />
+        {tracked && (
+          <>
+            <ToggleRow label="Reframe ikuti kursor" on={!!style.reframe} onChange={(reframe) => set({ reframe })} />
+            <p className="text-meta leading-relaxed text-muted">Di frame 1:1, 4:5, dan 9:16, rekaman mengisi frame dan bergeser mengikuti kursor.</p>
+          </>
+        )}
       </Section>
       <CursorSection clip={clip} />
     </>

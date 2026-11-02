@@ -37,7 +37,8 @@ export function ToolRail({ onRecord }: { onRecord: () => void }) {
 
   useEffect(() => {
     if (!active) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !(e.target as HTMLElement).closest("input, textarea, select") && useTools.getState().close();
+    const onKey = (e: KeyboardEvent) =>
+      e.key === "Escape" && !(e.target instanceof Element && e.target.closest("input, textarea, select")) && useTools.getState().close();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [active]);

@@ -150,6 +150,11 @@ export interface ScreenStyle {
   offsetY?: number;
   camera?: ScreenCamera;
   cursor?: ScreenCursor;
+  /**
+   * In a frame of another shape (1:1, 4:5, 9:16), fill it with the recording and pan
+   * with the pointer instead of shrinking the recording to fit. Needs a pointer track.
+   */
+  reframe?: boolean;
 }
 
 export type CursorStyleId = "white" | "black" | "accent" | "highlight";
@@ -170,6 +175,7 @@ export const DEFAULT_SCREEN_STYLE: ScreenStyle = {
   radius: 18,
   shadow: 0.6,
   cursor: DEFAULT_SCREEN_CURSOR,
+  reframe: true,
 };
 
 /** A zoom segment on the zoom track: magnify the screen around a focus point. */

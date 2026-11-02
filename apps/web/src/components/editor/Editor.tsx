@@ -88,7 +88,8 @@ export function Editor() {
   // Keyboard shortcuts.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement;
+      // Key events sent to the window or document (extensions, scripts) have no element target.
+      const el = e.target instanceof Element ? (e.target as HTMLElement) : document.body;
       // Text fields keep their own keys (incl. native undo); sliders and toggles don't.
       const typing = el.closest("textarea, select, [contenteditable='true']") || (el instanceof HTMLInputElement && !["range", "checkbox", "radio", "button", "color"].includes(el.type));
       if (typing) return;

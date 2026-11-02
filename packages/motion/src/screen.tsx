@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { AbsoluteFill, Img, useCurrentFrame, useVideoConfig } from "remotion";
 import { Video } from "@remotion/media";
-import { DEFAULT_SCREEN_CURSOR, DEFAULT_SCREEN_STYLE, cursorAt, type Asset, type Clip, type CursorStyleId, type ScreenStyle } from "@goodscreen/editor-core";
+import { DEFAULT_SCREEN_CURSOR, DEFAULT_SCREEN_STYLE, cursorAt, cursorFocusAt, type Asset, type Clip, type CursorStyleId, type ScreenStyle } from "@goodscreen/editor-core";
 
 /** Background presets. Linear gradients only: the in-browser renderer supports those. */
 export const SCREEN_BACKGROUNDS: { id: string; label: string; css: string }[] = [
@@ -125,9 +125,15 @@ export function ScreenStage({
     camBox = { x: 0, y: 0, w: W, h: H, round: 0 };
   }
 
-  // Fit the recording inside its region, keeping its own aspect ratio.
-  const fw = Math.min(region.w, region.h * aspect);
-  const fh = fw / aspect;
+  const srcT = clip.offset + (frameNo / fps) * speed;
+  const regionAspect = region.w / region.h;
+  // Reframe when fitting would leave much of the region empty (a 16:9 take in 1:1 or 9:16),
+  // never for small differences such as padding around a 16:9 take in a 16:9 canvas.
+  const reframe = !!style.reframe && !!screen.cursor?.length && Math.min(regionAspect / aspect, aspect / regionAspect) < 0.75;
+
+  // The frame: the recording fitted in its region, or the whole region when reframing.
+  const fw = reframe ? region.w : Math.min(region.w, region.h * aspect);
+  const fh = reframe ? region.h : fw / aspect;
   const frame = {
     x: region.x + (region.w - fw) / 2 + ((style.offsetX ?? 0) / 100) * W,
     y: region.y + (region.h - fh) / 2 + ((style.offsetY ?? 0) / 100) * H,
@@ -135,9 +141,20 @@ export function ScreenStage({
     h: fh,
   };
 
+  // The recording inside the frame: the same size, or covering it and panned so the
+  // pointer stays in view. A slower focus than zoom-follow keeps the camera calm.
+  const cw = reframe ? Math.max(fw, fh * aspect) : fw;
+  const ch = cw / aspect;
+  const look = (reframe && cursorFocusAt(screen.cursor, srcT, 0.6)) || { x: 0.5, y: 0.5 };
+  const panX = Math.min(cw - fw, Math.max(0, look.x * cw - fw / 2));
+  const panY = Math.min(ch - fh, Math.max(0, look.y * ch - fh / 2));
+  // Zoom focus is in recording coordinates; the zoom acts on the visible frame.
+  const zoomX = Math.min(1, Math.max(0, (zoom.x * cw - panX) / fw));
+  const zoomY = Math.min(1, Math.max(0, (zoom.y * ch - panY) / fh));
+
   // Pointer at this frame's source time; sized from the recorded pointer (~22px at the source width).
-  const pointer = cursorStyle.show ? cursorAt(screen.cursor, clip.offset + (frameNo / fps) * speed) : null;
-  const pointerH = fw * (22 / (screen.width || 1920)) * cursorStyle.size;
+  const pointer = cursorStyle.show ? cursorAt(screen.cursor, srcT) : null;
+  const pointerH = cw * (22 / (screen.width || 1920)) * cursorStyle.size;
 
   return (
     <AbsoluteFill style={backgroundCss(style.background)}>
@@ -166,18 +183,20 @@ export function ScreenStage({
               position: "relative",
               width: "100%",
               height: "100%",
-              transformOrigin: `${zoom.x * 100}% ${zoom.y * 100}%`,
+              transformOrigin: `${zoomX * 100}% ${zoomY * 100}%`,
               transform: zoom.scale !== 1 ? `scale(${zoom.scale})` : undefined,
               filter: zoom.blur > 0.3 ? `blur(${zoom.blur}px)` : undefined,
             }}
           >
-            <Video src={screen.src!} trimBefore={trimBefore} playbackRate={speed} muted={muted} volume={volume} objectFit="cover" style={{ width: "100%", height: "100%" }} />
-            {/* Inside the zoom, so a zoom-in enlarges the pointer with the screen. */}
-            {pointer && (
-              <div style={{ position: "absolute", left: pointer.x * fw - pointerH / 22, top: pointer.y * fh - pointerH / 22, pointerEvents: "none" }}>
-                <CursorGlyph style={cursorStyle.style} height={pointerH} />
-              </div>
-            )}
+            <div style={{ position: "absolute", left: -panX, top: -panY, width: cw, height: ch }}>
+              <Video src={screen.src!} trimBefore={trimBefore} playbackRate={speed} muted={muted} volume={volume} objectFit="cover" style={{ width: "100%", height: "100%" }} />
+              {/* Inside the zoom, so a zoom-in enlarges the pointer with the screen. */}
+              {pointer && (
+                <div style={{ position: "absolute", left: pointer.x * cw - pointerH / 22, top: pointer.y * ch - pointerH / 22, pointerEvents: "none" }}>
+                  <CursorGlyph style={cursorStyle.style} height={pointerH} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
