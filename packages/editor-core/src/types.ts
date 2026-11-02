@@ -41,11 +41,19 @@ export interface Asset {
   createdAt: number;
 }
 
-/** Pointer tip at source time `t` (seconds), as 0..1 of the recording. Gaps = pointer not found. */
+/** Pointer shapes the tracker recognises: the arrow, the text I-beam and the link hand. */
+export type CursorShape = "arrow" | "text" | "hand";
+
+/**
+ * Pointer hotspot at source time `t` (seconds), as 0..1 of the recording: the arrow's tip,
+ * the I-beam's centre, the hand's fingertip. Gaps = pointer not found.
+ */
 export interface CursorSample {
   t: number;
   x: number;
   y: number;
+  /** Shape, when not the arrow (kept out of the arrow samples to stay small). */
+  s?: Exclude<CursorShape, "arrow">;
 }
 
 export interface Track {

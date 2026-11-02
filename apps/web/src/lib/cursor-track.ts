@@ -1,28 +1,50 @@
-import type { CursorSample } from "@goodscreen/editor-core";
+import type { CursorSample, CursorShape } from "@goodscreen/editor-core";
 
 /**
  * Finds the mouse pointer in a screen-capture stream while it records.
  *
  * Browsers never tell a page where the pointer is outside its own tab, but the
- * capture has the pointer drawn in. So, ~10 times a second:
- *  1. diff a small copy of the frame with the previous one to find small changed spots
- *     (a moving pointer leaves two: where it was and where it is);
- *  2. match an arrow shape at full resolution in those spots, and around the last
- *     known position (a pointer that stands still makes no diff).
- * Only the standard arrow is recognised; other shapes (text I-beam, hand) leave a gap,
+ * capture has the pointer drawn in. So:
+ *  - every frame, look for the pointer close to where it last was (cheap, and it keeps
+ *    up with fast moves, so a custom pointer drawn later stays on top of the real one);
+ *  - ~10 times a second, also diff a small copy of the frame with the previous one to
+ *    find small changed spots (a moving pointer leaves two) and look there, which finds
+ *    the pointer again after a jump or when it was lost.
+ * The arrow, the text I-beam and the link hand are recognised. Other shapes leave a gap,
  * during which the editor simply shows the recorded pointer.
  */
 
-const TICK_MS = 100;
+const FULL_SCAN_MS = 100;
 const DIFF_W = 480; // diff image width
 const CELL = 8; // diff grid cell, in diff pixels
 const LUMA_DELTA = 28;
-/** Arrow heights to try, in capture pixels (100–250% display scaling, macOS). */
-const HEIGHTS = [19, 24, 29, 33, 38, 48];
+/** How far the pointer may move between two frames and still be followed by the local search. */
+const LOCAL_RADIUS = 64;
+/** Pointer heights at 100% display scaling, and the scales to try (100–250%, macOS). */
+const BASE_H: Record<CursorShape, number> = { arrow: 19, text: 17, hand: 22 };
+const SCALES = [1, 1.25, 1.5, 1.75, 2, 2.5];
 const MIN_SCORE = 0.8;
+/** While the pointer rests, a sample at least this often (so a rest doesn't read as a gap). */
+const REST_SAMPLE_S = 0.25;
 
-// The arrow outline, unit height, tip at (0, 0) (Windows and macOS arrows are close to this).
-const POLY: [number, number][] = [
+type Pt = [number, number];
+type Template = {
+  shape: CursorShape;
+  scale: number;
+  w: number;
+  h: number;
+  /** Hotspot inside the template (arrow tip, I-beam centre, fingertip). */
+  hx: number;
+  hy: number;
+  /** "outlined": light fill with a dark outline (or the reverse). "contrast": a thin
+      uniform stroke whose sides contrast with it (the I-beam, which has no outline). */
+  mode: "outlined" | "contrast";
+  fill: Int32Array;
+  edge: Int32Array;
+};
+
+// Outlines in units of the pointer's height, hotspot first.
+const ARROW: Pt[] = [
   [0, 0],
   [0, 0.84],
   [0.21, 0.65],
@@ -31,17 +53,31 @@ const POLY: [number, number][] = [
   [0.35, 0.6],
   [0.62, 0.6],
 ];
+const HAND: Pt[] = [
+  [0.19, 0.07],
+  [0.27, 0.02],
+  [0.35, 0.07],
+  [0.35, 0.39],
+  [0.75, 0.48],
+  [0.75, 0.73],
+  [0.66, 0.93],
+  [0.39, 0.95],
+  [0.23, 0.84],
+  [0.08, 0.64],
+  [0.11, 0.56],
+  [0.19, 0.57],
+];
+// The fingertip, measured: the outline above is a rough glove, so the best match sits a little high.
+const HAND_HOT: Pt = [0.32, 0.2];
 
-type Template = { h: number; fill: Int32Array; edge: Int32Array; w: number };
-
-function distToSegment(px: number, py: number, [ax, ay]: [number, number], [bx, by]: [number, number]) {
+function distToSegment(px: number, py: number, [ax, ay]: Pt, [bx, by]: Pt) {
   const dx = bx - ax;
   const dy = by - ay;
   const p = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
   return Math.hypot(px - ax - dx * p, py - ay - dy * p);
 }
 
-function inside(px: number, py: number, poly: [number, number][]) {
+function inside(px: number, py: number, poly: Pt[]) {
   let hit = false;
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
     const [xi, yi] = poly[i]!;
@@ -51,13 +87,14 @@ function inside(px: number, py: number, poly: [number, number][]) {
   return hit;
 }
 
-/** Sample offsets (dx, dy pairs) for the arrow's fill and its outline band at height h. */
-function makeTemplate(h: number): Template {
-  const poly = POLY.map(([x, y]) => [x * h, y * h] as [number, number]);
+/** Fill points deep inside the outline, and edge points in the outline band just inside it. */
+function outlined(shape: CursorShape, scale: number, unit: Pt[], hot: Pt): Template {
+  const h = BASE_H[shape] * scale;
+  const poly = unit.map(([x, y]) => [x * h, y * h] as Pt);
   const band = Math.max(1, 0.05 * h);
+  const w = Math.ceil(Math.max(...poly.map(([x]) => x))) + 1;
   const fill: number[] = [];
   const edge: number[] = [];
-  const w = Math.ceil(0.62 * h) + 1;
   for (let y = 0; y <= Math.ceil(h); y++)
     for (let x = 0; x <= w; x++) {
       const px = x + 0.5;
@@ -68,41 +105,65 @@ function makeTemplate(h: number): Template {
       if (d >= band + 1) fill.push(x, y);
       else if (d >= 0.3 && d <= band) edge.push(x, y);
     }
-  return { h, fill: Int32Array.from(fill), edge: Int32Array.from(edge), w };
+  return { shape, scale, w, h: Math.ceil(h) + 1, hx: Math.round(hot[0] * h), hy: Math.round(hot[1] * h), mode: "outlined", fill: Int32Array.from(fill), edge: Int32Array.from(edge) };
 }
 
-const TEMPLATES = HEIGHTS.map(makeTemplate);
+/** The I-beam: a thin stem with short bars at both ends. Edge points sit beside the stem. */
+function iBeam(scale: number): Template {
+  const h = Math.round(BASE_H.text * scale);
+  const stem = Math.max(1, Math.round(h * 0.06));
+  const arm = Math.max(2, Math.round(h * 0.18));
+  const bar = Math.max(1, Math.round(h * 0.06));
+  const cx = arm + 2;
+  const w = cx * 2 + stem;
+  const fill: number[] = [];
+  const edge: number[] = [];
+  for (let y = Math.round(h * 0.2); y < Math.round(h * 0.8); y++) {
+    for (let x = cx; x < cx + stem; x++) fill.push(x, y);
+    // Beside the stem, past a possible 1px outline.
+    edge.push(cx - 3, y, cx + stem + 2, y);
+  }
+  for (let y = 0; y < bar; y++)
+    for (let x = cx - arm; x < cx + stem + arm; x++) fill.push(x, y, x, h - 1 - y);
+  return { shape: "text", scale, w, h: h + 1, hx: cx, hy: Math.round(h / 2), mode: "contrast", fill: Int32Array.from(fill), edge: Int32Array.from(edge) };
+}
 
-/** Share of points that agree with a light-fill/dark-outline (or the reverse) arrow at (ox, oy). */
+const TEMPLATES: Template[] = SCALES.flatMap((s) => [outlined("arrow", s, ARROW, [0, 0]), iBeam(s), outlined("hand", s, HAND, HAND_HOT)]);
+const atScale = (scale: number) => TEMPLATES.filter((t) => t.scale === scale);
+
+/** How well the frame at template origin (ox, oy) matches t, 0..1 (0 = early reject). */
 function score(luma: Uint8ClampedArray, stride: number, rows: number, t: Template, ox: number, oy: number) {
-  if (ox < 0 || oy < 0 || ox + t.w >= stride || oy + t.h + 1 >= rows) return 0;
+  if (ox < 3 || oy < 0 || ox + t.w + 3 >= stride || oy + t.h >= rows) return 0;
+  const at = (pts: Int32Array, i: number) => luma[(oy + pts[i + 1]!) * stride + ox + pts[i]!]!;
+  const nFill = t.fill.length / 2;
+  const nEdge = t.edge.length / 2;
   let best = 0;
   for (const light of [true, false]) {
-    let ok = 0;
-    let n = 0;
+    const maxMiss = nFill * (1 - MIN_SCORE);
     let miss = 0;
-    const maxMiss = (t.fill.length / 2) * (1 - MIN_SCORE);
-    for (let i = 0; i < t.fill.length; i += 2) {
-      const v = luma[(oy + t.fill[i + 1]!) * stride + ox + t.fill[i]!]!;
-      if (light ? v > 185 : v < 70) ok++;
-      else if (++miss > maxMiss) break; // most positions fail here, fast
-      n++;
+    let sum = 0;
+    for (let i = 0; i < t.fill.length && miss <= maxMiss; i += 2) {
+      const v = at(t.fill, i);
+      sum += v;
+      if (!(light ? v > 185 : v < 70)) miss++; // most positions fail here, fast
     }
     if (miss > maxMiss) continue;
-    const fillShare = ok / Math.max(1, n);
-    let eok = 0;
+    const fillShare = 1 - miss / nFill;
+    const mean = sum / nFill;
+    const maxEdgeMiss = nEdge * (1 - MIN_SCORE);
     let emiss = 0;
-    const maxEdgeMiss = (t.edge.length / 2) * (1 - MIN_SCORE);
-    for (let i = 0; i < t.edge.length; i += 2) {
-      const v = luma[(oy + t.edge[i + 1]!) * stride + ox + t.edge[i]!]!;
-      if (light ? v < 110 : v > 150) eok++;
-      else if (++emiss > maxEdgeMiss) break; // a light page passes the fill test everywhere; the outline settles it
+    for (let i = 0; i < t.edge.length && emiss <= maxEdgeMiss; i += 2) {
+      const v = at(t.edge, i);
+      const ok = t.mode === "outlined" ? (light ? v < 110 : v > 150) : Math.abs(v - mean) > 70;
+      if (!ok) emiss++; // a light page passes the fill test everywhere; the outline settles it
     }
     if (emiss > maxEdgeMiss) continue;
-    best = Math.max(best, Math.min(fillShare, eok / Math.max(1, t.edge.length / 2)));
+    best = Math.max(best, Math.min(fillShare, 1 - emiss / nEdge));
   }
   return best;
 }
+
+type Hit = { x: number; y: number; t: Template; s: number };
 
 export interface CursorTracker {
   /** Stops tracking and returns the samples so far. */
@@ -126,13 +187,14 @@ export function trackCursor(track: MediaStreamTrack, time: () => number | null):
   let last: { x: number; y: number; t: Template } | null = null;
   const samples: CursorSample[] = [];
 
-  /** Best arrow with its tip inside [x0, x1] × [y0, y1] (capture pixels). */
-  const search = (x0: number, y0: number, x1: number, y1: number, templates: Template[]) => {
+  /** Best match among `templates` with its hotspot inside [x0, x1] × [y0, y1] (capture pixels). */
+  const search = (x0: number, y0: number, x1: number, y1: number, templates: Template[], near?: { x: number; y: number }): Hit | null => {
+    const maxW = Math.max(...templates.map((t) => t.w));
     const maxH = Math.max(...templates.map((t) => t.h));
-    const sx = Math.max(0, Math.floor(x0));
-    const sy = Math.max(0, Math.floor(y0));
-    const sw = Math.min(vw, Math.ceil(x1 + maxH)) - sx;
-    const sh = Math.min(vh, Math.ceil(y1 + maxH + 2)) - sy;
+    const sx = Math.max(0, Math.floor(x0 - maxW - 4));
+    const sy = Math.max(0, Math.floor(y0 - maxH));
+    const sw = Math.min(vw, Math.ceil(x1 + maxW + 4)) - sx;
+    const sh = Math.min(vh, Math.ceil(y1 + maxH)) - sy;
     if (sw <= 0 || sh <= 0) return null;
     crop.canvas.width = sw;
     crop.canvas.height = sh;
@@ -140,21 +202,26 @@ export function trackCursor(track: MediaStreamTrack, time: () => number | null):
     const rgba = crop.getImageData(0, 0, sw, sh).data;
     const luma = new Uint8ClampedArray(sw * sh);
     for (let i = 0, p = 0; p < luma.length; i += 4, p++) luma[p] = (rgba[i]! * 77 + rgba[i + 1]! * 150 + rgba[i + 2]! * 29) >> 8;
-    let best: { x: number; y: number; t: Template; s: number } | null = null;
+    let best: Hit | null = null;
+    let bestRank = -Infinity;
     for (const t of templates)
-      for (let oy = 0; oy <= Math.min(sh, y1 - sy + 1); oy++)
-        for (let ox = 0; ox <= Math.min(sw, x1 - sx + 1); ox++) {
-          const s = score(luma, sw, sh, t, ox, oy);
-          if (s >= MIN_SCORE && (!best || s > best.s)) best = { x: sx + ox, y: sy + oy, t, s };
+      for (let hy = Math.ceil(y0); hy <= y1; hy++)
+        for (let hx = Math.ceil(x0); hx <= x1; hx++) {
+          const s = score(luma, sw, sh, t, hx - t.hx - sx, hy - t.hy - sy);
+          if (s < MIN_SCORE) continue;
+          // Near the last position wins over a slightly better match far away: text being
+          // typed elsewhere can look like an I-beam, the pointer rarely teleports.
+          const rank = near ? s - Math.hypot(hx - near.x, hy - near.y) / 400 : s;
+          if (rank > bestRank) {
+            bestRank = rank;
+            best = { x: hx, y: hy, t, s };
+          }
         }
     return best;
   };
 
-  const tick = () => {
-    const now = time();
-    if (now === null || !vw || !vh) return;
-
-    // 1. Small changed spots.
+  /** Small changed spots since the previous full scan, in capture pixels. */
+  const changedSpots = () => {
     const dw = Math.min(DIFF_W, vw);
     const dh = Math.round((vh / vw) * dw);
     if (small.canvas.width !== dw || small.canvas.height !== dh) {
@@ -208,28 +275,51 @@ export function trackCursor(track: MediaStreamTrack, time: () => number | null):
           // About pointer-sized only (a few cells across).
           if (x1 - x0 <= 6 && y1 - y0 <= 8) {
             const k = vw / dw;
-            spots.push({ x0: (x0 * CELL - 2) * k, y0: (y0 * CELL - 2) * k, x1: ((x1 + 1) * CELL + 2) * k, y1: ((y1 + 1) * CELL + 2) * k });
+            spots.push({ x0: x0 * CELL * k, y0: y0 * CELL * k, x1: (x1 + 1) * CELL * k, y1: (y1 + 1) * CELL * k });
           }
         }
       }
     }
     prev = luma;
-
-    // 2. Arrow in the spots (any size), else still where it was (known size).
-    let found: { x: number; y: number; t: Template; s: number } | null = null;
-    for (const s of spots.slice(0, 4)) {
-      const hit = search(s.x0, s.y0, s.x1, s.y1, last ? [last.t, ...TEMPLATES.filter((t) => t !== last!.t)] : TEMPLATES);
-      if (hit && (!found || hit.s > found.s)) found = hit;
-    }
-    if (!found && last) found = search(last.x - 3, last.y - 3, last.x + 3, last.y + 3, [last.t]);
-    if (!found) return;
-    last = { x: found.x, y: found.y, t: found.t };
-    samples.push({ t: Math.round(now * 1000) / 1000, x: Math.round((found.x / vw) * 10000) / 10000, y: Math.round((found.y / vh) * 10000) / 10000 });
+    return spots;
   };
 
-  const safeTick = () => {
+  /** One frame at recording time `t`; `full` adds the diff scan (≈10×/s). */
+  const tick = (t: number, full: boolean) => {
+    if (!vw || !vh) return;
+    let found: Hit | null = null;
+    // 1. Close to the last position, at the same display scale (any of the three shapes).
+    if (last) {
+      const r = LOCAL_RADIUS;
+      const sameScale = [last.t, ...atScale(last.t.scale).filter((x) => x !== last!.t)];
+      found = search(last.x - r, last.y - r, last.x + r, last.y + r, sameScale, last);
+    }
+    // 2. In the spots that changed; any shape and scale if the pointer was lost.
+    if (full) {
+      const spots = changedSpots();
+      if (!found)
+        for (const s of spots.slice(0, 4)) {
+          const hit = search(s.x0, s.y0, s.x1, s.y1, last ? atScale(last.t.scale) : TEMPLATES, last ?? undefined) ?? (last ? search(s.x0, s.y0, s.x1, s.y1, TEMPLATES) : null);
+          if (hit && (!found || hit.s > found.s)) found = hit;
+        }
+    }
+    if (!found) {
+      // One blurred frame isn't a lost pointer; give up only when the full scan misses too.
+      if (full) last = null;
+      return;
+    }
+    last = { x: found.x, y: found.y, t: found.t };
+    const sample: CursorSample = { t: Math.round(t * 1000) / 1000, x: Math.round((found.x / vw) * 1e5) / 1e5, y: Math.round((found.y / vh) * 1e5) / 1e5 };
+    if (found.t.shape !== "arrow") sample.s = found.t.shape;
+    // A resting pointer needs only a sample now and then; a moving one gets every frame.
+    const prevSample = samples[samples.length - 1];
+    if (prevSample && prevSample.x === sample.x && prevSample.y === sample.y && prevSample.s === sample.s && t - prevSample.t < REST_SAMPLE_S) return;
+    samples.push(sample);
+  };
+
+  const safeTick = (t: number, full: boolean) => {
     try {
-      tick();
+      tick(t, full);
     } catch {
       // A frame that can't be read (track ended) is just skipped.
     }
@@ -244,17 +334,25 @@ export function trackCursor(track: MediaStreamTrack, time: () => number | null):
   if (Processor) {
     const own = track.clone();
     const reader = new Processor({ track: own }).readable.getReader();
-    let lastTs = -Infinity;
+    let lastFull = -Infinity;
+    // Frame timestamps tell when a frame was captured, not when it got here. The smallest
+    // (recording time − frame time) seen is the least delayed reading of the offset between
+    // the two clocks; it also drops by the right amount after a pause.
+    let offset = Infinity;
     void (async () => {
       while (!stopped) {
         const { value: frame, done } = await reader.read().catch(() => ({ value: undefined, done: true }));
         if (done || !frame) break;
-        if (frame.timestamp - lastTs >= TICK_MS * 1000 * 0.95) {
-          lastTs = frame.timestamp;
+        const now = time();
+        if (now !== null) {
+          const ts = frame.timestamp / 1e6;
+          offset = Math.min(offset, now - ts);
           source = frame;
           vw = frame.displayWidth;
           vh = frame.displayHeight;
-          safeTick();
+          const full = frame.timestamp - lastFull >= FULL_SCAN_MS * 1000 * 0.95;
+          if (full) lastFull = frame.timestamp;
+          safeTick(ts + offset, full);
         }
         frame.close();
       }
@@ -270,11 +368,12 @@ export function trackCursor(track: MediaStreamTrack, time: () => number | null):
     video.srcObject = new MediaStream([track]);
     void video.play().catch(() => {});
     const id = setInterval(() => {
-      if (video.readyState < 2) return;
+      const now = time();
+      if (now === null || video.readyState < 2) return;
       vw = video.videoWidth;
       vh = video.videoHeight;
-      safeTick();
-    }, TICK_MS);
+      safeTick(now, true);
+    }, FULL_SCAN_MS);
     stopSource = () => {
       clearInterval(id);
       video.srcObject = null;

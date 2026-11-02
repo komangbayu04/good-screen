@@ -1,6 +1,9 @@
-import type { CursorSample } from "./types";
+import type { CursorSample, CursorShape } from "./types";
 
-/** Samples are ~10 Hz; a longer gap means the pointer was not found (hidden, or another shape). */
+/**
+ * Samples come every frame while the pointer moves and at least every 0.25 s while it
+ * rests; a longer gap means it was not found (hidden, or a shape the tracker doesn't know).
+ */
 const MAX_GAP = 0.35;
 
 /** Index of the last sample at or before t (-1 if none). Samples are sorted by t. */
@@ -18,18 +21,22 @@ function before(samples: CursorSample[], t: number) {
   return hit;
 }
 
-/** Pointer at source time t, unsmoothed so a custom pointer stays on top of the recorded one. */
-export function cursorAt(samples: CursorSample[] | undefined, t: number): { x: number; y: number } | null {
+/**
+ * Pointer at source time t, unsmoothed so a custom pointer stays on top of the recorded one.
+ * The shape is the nearer sample's (shapes switch, they don't blend).
+ */
+export function cursorAt(samples: CursorSample[] | undefined, t: number): { x: number; y: number; shape: CursorShape } | null {
   if (!samples?.length) return null;
   const i = before(samples, t);
   const a = samples[i];
   const b = samples[i + 1];
+  const shape = (s: CursorSample) => s.s ?? "arrow";
   if (a && b && b.t - a.t <= MAX_GAP) {
     const p = (t - a.t) / (b.t - a.t);
-    return { x: a.x + (b.x - a.x) * p, y: a.y + (b.y - a.y) * p };
+    return { x: a.x + (b.x - a.x) * p, y: a.y + (b.y - a.y) * p, shape: shape(p < 0.5 ? a : b) };
   }
-  if (a && t - a.t <= MAX_GAP / 2) return a;
-  if (b && b.t - t <= MAX_GAP / 2) return b;
+  if (a && t - a.t <= MAX_GAP / 2) return { x: a.x, y: a.y, shape: shape(a) };
+  if (b && b.t - t <= MAX_GAP / 2) return { x: b.x, y: b.y, shape: shape(b) };
   return null;
 }
 

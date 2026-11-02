@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { AbsoluteFill, Img, useCurrentFrame, useVideoConfig } from "remotion";
 import { Video } from "@remotion/media";
-import { DEFAULT_SCREEN_CURSOR, DEFAULT_SCREEN_STYLE, cursorAt, cursorFocusAt, type Asset, type Clip, type CursorStyleId, type ScreenStyle } from "@goodscreen/editor-core";
+import { DEFAULT_SCREEN_CURSOR, DEFAULT_SCREEN_STYLE, cursorAt, cursorFocusAt, type Asset, type Clip, type CursorShape, type CursorStyleId, type ScreenStyle } from "@goodscreen/editor-core";
 
 /** Background presets. Linear gradients only: the in-browser renderer supports those. */
 export const SCREEN_BACKGROUNDS: { id: string; label: string; css: string }[] = [
@@ -48,16 +48,36 @@ export const CURSOR_STYLES: { id: CursorStyleId; label: string; fill: string; st
   { id: "highlight", label: "Sorotan", fill: "#ffffff", stroke: "#000000", halo: "rgba(250, 204, 21, 0.45)" },
 ];
 
-// Arrow in a 16×22 box with its tip at (1, 1).
-const ARROW = "M1 1 L1 17.5 L5 13.6 L8 20.5 L10.8 19.3 L7.9 12.6 L13.4 12.6 Z";
+/**
+ * One glyph per pointer shape, all 22 units tall (so one size setting fits all), each
+ * placed by its hotspot: the arrow's tip, the I-beam's centre, the hand's fingertip.
+ */
+export const CURSOR_GLYPHS: Record<CursorShape, { w: number; hx: number; hy: number }> = {
+  arrow: { w: 16, hx: 1, hy: 1 },
+  text: { w: 10, hx: 5, hy: 11 },
+  hand: { w: 18, hx: 6.2, hy: 1 },
+};
 
-export function CursorGlyph({ style, height }: { style: CursorStyleId; height: number }) {
+const ARROW = "M1 1 L1 17.5 L5 13.6 L8 20.5 L10.8 19.3 L7.9 12.6 L13.4 12.6 Z";
+const I_BEAM = "M2.2 1.6 H7.8 M5 1.6 V20.4 M2.2 20.4 H7.8";
+const HAND =
+  "M6.2 1C7.2 1 8 1.8 8 2.8V9C8.4 8.3 9.2 8 9.9 8.2 10.7 8.4 11.2 9 11.2 9.6 11.6 9.1 12.4 8.9 13.1 9.2 13.8 9.5 14.1 10.2 14.1 10.8 14.5 10.4 15.2 10.3 15.8 10.6 16.5 11 16.7 11.6 16.7 12.3V16C16.7 19 14.7 21 11.7 21H9.7C7.7 21 6.5 20.3 5.4 18.8L2.2 14.6C1.6 13.8 1.8 12.8 2.6 12.3 3.3 11.9 4.2 12.1 4.7 12.8L4.4 12.4V2.8C4.4 1.8 5.2 1 6.2 1Z";
+
+export function CursorGlyph({ style, height, shape = "arrow" }: { style: CursorStyleId; height: number; shape?: CursorShape }) {
   const s = CURSOR_STYLES.find((c) => c.id === style) ?? CURSOR_STYLES[0]!;
-  const width = (height * 16) / 22;
+  const g = CURSOR_GLYPHS[shape];
   return (
-    <svg width={width} height={height} viewBox="0 0 16 22" style={{ display: "block", overflow: "visible" }}>
-      {s.halo && <circle cx="1" cy="1" r="7" fill={s.halo} />}
-      <path d={ARROW} fill={s.fill} stroke={s.stroke} strokeWidth="1.3" strokeLinejoin="round" />
+    <svg width={(height * g.w) / 22} height={height} viewBox={`0 0 ${g.w} 22`} style={{ display: "block", overflow: "visible" }}>
+      {s.halo && <circle cx={g.hx} cy={g.hy} r="7" fill={s.halo} />}
+      {shape === "text" ? (
+        // The I-beam is a stroke: outline colour underneath, fill colour on top.
+        <g fill="none" strokeLinecap="round">
+          <path d={I_BEAM} stroke={s.stroke} strokeWidth="3.4" />
+          <path d={I_BEAM} stroke={s.fill} strokeWidth="1.6" />
+        </g>
+      ) : (
+        <path d={shape === "hand" ? HAND : ARROW} fill={s.fill} stroke={s.stroke} strokeWidth="1.3" strokeLinejoin="round" />
+      )}
     </svg>
   );
 }
@@ -192,8 +212,15 @@ export function ScreenStage({
               <Video src={screen.src!} trimBefore={trimBefore} playbackRate={speed} muted={muted} volume={volume} objectFit="cover" style={{ width: "100%", height: "100%" }} />
               {/* Inside the zoom, so a zoom-in enlarges the pointer with the screen. */}
               {pointer && (
-                <div style={{ position: "absolute", left: pointer.x * cw - pointerH / 22, top: pointer.y * ch - pointerH / 22, pointerEvents: "none" }}>
-                  <CursorGlyph style={cursorStyle.style} height={pointerH} />
+                <div
+                  style={{
+                    position: "absolute",
+                    left: pointer.x * cw - (CURSOR_GLYPHS[pointer.shape].hx * pointerH) / 22,
+                    top: pointer.y * ch - (CURSOR_GLYPHS[pointer.shape].hy * pointerH) / 22,
+                    pointerEvents: "none",
+                  }}
+                >
+                  <CursorGlyph style={cursorStyle.style} height={pointerH} shape={pointer.shape} />
                 </div>
               )}
             </div>
