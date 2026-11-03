@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Film, Layers2, Music, Type, Wand2, ZoomIn } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
+import { ChevronLeft, ChevronRight, Film, Layers2, Music } from "lucide-react";
 import { MIN_CLIP, clipRole, projectDuration, useEditor, type Asset, type Clip, type Track, type TrackKind } from "@goodscreen/editor-core";
-import { nearestFrame, useFilmstrip } from "@/lib/filmstrip";
+import { templateMeta } from "@goodscreen/motion/templates";
 import { seek } from "@/lib/player-bridge";
 import { ClipKeyMarkers } from "./Keyframes";
 
@@ -13,7 +13,6 @@ const ROW_H: Record<TrackKind, string> = {
   audio: "h-9 lg:h-11",
 };
 const TRACK_ICON = { layer: Layers2, video: Film, audio: Music };
-const ROLE_ICON = { motion: Wand2, zoom: ZoomIn, caption: Type, media: null };
 const SNAP_PX = 8;
 const RULER_H = 32;
 
@@ -74,7 +73,9 @@ export function Timeline() {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 overflow-hidden px-2 pt-2 pb-2 select-none">
+    // Scrolls vertically as one block (track icons and rows together) when the timeline is
+    // made shorter than its rows; the rows scroll horizontally on their own.
+    <div className="scrollbar-thin flex min-h-0 flex-1 items-start overflow-x-hidden overflow-y-auto overscroll-contain px-2 pt-2 pb-2 select-none">
       {/* Track icons */}
       <div className="w-7 shrink-0 lg:w-14">
         <div style={{ height: RULER_H }} />
@@ -84,7 +85,7 @@ export function Timeline() {
       </div>
 
       {/* Scrollable lanes */}
-      <div ref={scrollRef} className="scrollbar-thin relative min-w-0 flex-1 overflow-x-auto overflow-y-hidden">
+      <div ref={scrollRef} className="scrollbar-thin relative min-w-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain">
         <div className="relative" style={{ width }}>
           <Ruler pps={pps} width={width} onPointerDown={scrub} />
           {project.tracks.map((t) => (
@@ -120,8 +121,8 @@ function TrackHeader({ track }: { track: Track }) {
     <div className={`flex items-center justify-center py-1 ${ROW_H[track.kind]}`}>
       <button
         onClick={() => toggle(track.id, audible ? "muted" : "hidden")}
-        title={`${track.name} — klik untuk ${audible ? (off ? "nyalakan suara" : "mute") : off ? "tampilkan" : "sembunyikan"}`}
-        aria-label={`${track.name}: ${off ? "nonaktif" : "aktif"}`}
+        title={`${track.name} — click to ${audible ? (off ? "unmute" : "mute") : off ? "show" : "hide"}`}
+        aria-label={`${track.name}: ${off ? "off" : "on"}`}
         className={`flex size-7 items-center justify-center rounded-lg transition-colors hover:bg-panel-3 lg:size-9 lg:rounded-xl ${off ? "text-muted/40 line-through" : "text-fg/60 lg:text-fg/70"}`}
       >
         <Icon className="size-3.5 lg:size-[18px]" />
@@ -249,8 +250,8 @@ function ClipView({ clip, track, pps, selected }: { clip: Clip; track: Track; pp
   };
 
   const w = Math.max(4, clip.duration * pps);
-  const RoleIcon = ROLE_ICON[clipRole(clip)];
-  const thumb = track.kind === "video" ? asset?.thumbnail : undefined;
+  const look = clipLook(clip, track, asset);
+  const meta = clipMeta(clip, track);
 
   return (
     <div
@@ -259,49 +260,32 @@ function ClipView({ clip, track, pps, selected }: { clip: Clip; track: Track; pp
       role="button"
       tabIndex={0}
       aria-pressed={selected}
-      aria-label={`${track.name}: ${label}, mulai ${clip.start.toFixed(1)} detik, durasi ${clip.duration.toFixed(1)} detik`}
-      className={`absolute top-1 bottom-1 touch-none overflow-hidden rounded-xl border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-1 focus-visible:ring-offset-panel ${
-        selected ? "z-10 border-secondary bg-panel-3" : "border-ink/10 bg-panel-2 hover:border-ink/25"
-      } ${
-        track.locked ? "cursor-not-allowed" : "cursor-grab active:cursor-grabbing"
-      }`}
-      style={{ left: clip.start * pps, width: w }}
+      aria-label={`${track.name}: ${label}, starts at ${clip.start.toFixed(1)}s, ${clip.duration.toFixed(1)}s long`}
+      className={`absolute top-1 bottom-1 touch-none overflow-hidden rounded-[10px] text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.18)] transition-[filter] outline-none hover:brightness-110 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1 focus-visible:ring-offset-panel ${
+        selected ? "z-10 is-selected" : ""
+      } ${track.locked ? "cursor-not-allowed" : "cursor-grab active:cursor-grabbing"}`}
+      style={{ left: clip.start * pps, width: w, background: look.color }}
     >
-      {track.kind === "video" ? (
-        <>
-          <Filmstrip clip={clip} asset={asset} pps={pps} fallback={thumb} />
-          {/* Frames stay fully visible; effects sit as bold tags in the top-left corner. */}
-          <div className={`pointer-events-none absolute top-1 right-1 flex min-w-0 flex-wrap gap-1 ${selected ? "left-6 lg:left-5" : "left-1.5"}`}>
-            {clipTags(clip).map((t) => (
-              <span key={t.label} className={`rounded-[5px] px-1.5 py-px text-2xs leading-4 font-bold whitespace-nowrap uppercase shadow-sm bg-black/75 text-white`}>
-                {t.label}
-              </span>
-            ))}
-          </div>
-        </>
-      ) : (
-      <div className={`relative flex h-full items-center gap-2 ${selected ? "px-6 lg:px-5" : "px-1.5"}`}>
-        {track.kind === "audio" && (
-          <div className="absolute inset-x-2 inset-y-2 opacity-60 [background:repeating-linear-gradient(90deg,#fff_0_2px,transparent_2px_5px)] [mask-image:linear-gradient(transparent,#000_25%,#000_75%,transparent)]" />
-        )}
-        {RoleIcon && <RoleIcon className="size-3 shrink-0 text-fg/60" />}
-        <span className={`relative truncate text-meta text-fg/90 ${track.kind === "audio" ? "ml-auto rounded bg-panel-2/80 px-1" : ""}`}>{label}</span>
-        {clip.speed && clip.speed !== 1 && (
-          <span className="shrink-0 rounded-full bg-black/50 px-1.5 font-mono text-2xs text-fg/90">{clip.speed}x</span>
-        )}
-      </div>
+      {/* Solid bars, like Screen Studio; audio keeps a faint waveform as texture. */}
+      {track.kind === "audio" && (
+        <div className="absolute inset-x-2 inset-y-2 opacity-25 [background:repeating-linear-gradient(90deg,#fff_0_2px,transparent_2px_5px)] [mask-image:linear-gradient(transparent,#000_25%,#000_75%,transparent)]" />
       )}
+      {/* Type and summary, centred (Screen Studio's "Clip · 6s · 1×"). Narrow clips keep the name only. */}
+      <div className={`pointer-events-none relative flex h-full min-w-0 flex-col items-center justify-center text-center leading-tight ${selected ? "px-6 lg:px-5" : "px-2"}`}>
+        <span className="max-w-full truncate text-meta font-semibold">{look.name}</span>
+        {meta && w > 72 && <span className="max-w-full truncate font-mono text-2xs text-white/75 tabular-nums">{meta}</span>}
+      </div>
       <ClipKeyMarkers clip={clip} pps={pps} selected={selected} />
-      {/* Trim handles: orange caps when selected */}
+      {/* Trim handles: white caps when selected */}
       <div
         onPointerDown={(e) => onPointerDown(e, "trim-l")}
-        className={`absolute inset-y-0 left-0 flex cursor-ew-resize items-center justify-center ${selected ? "w-5 bg-secondary lg:w-4" : "w-4 lg:w-3"}`}
+        className={`absolute inset-y-0 left-0 flex cursor-ew-resize items-center justify-center ${selected ? "w-5 bg-white lg:w-4" : "w-4 lg:w-3"}`}
       >
         {selected && <ChevronLeft className="size-3 text-on-secondary" strokeWidth={3} />}
       </div>
       <div
         onPointerDown={(e) => onPointerDown(e, "trim-r")}
-        className={`absolute inset-y-0 right-0 flex cursor-ew-resize items-center justify-center ${selected ? "w-5 bg-secondary lg:w-4" : "w-4 lg:w-3"}`}
+        className={`absolute inset-y-0 right-0 flex cursor-ew-resize items-center justify-center ${selected ? "w-5 bg-white lg:w-4" : "w-4 lg:w-3"}`}
       >
         {selected && <ChevronRight className="size-3 text-on-secondary" strokeWidth={3} />}
       </div>
@@ -309,51 +293,37 @@ function ClipView({ clip, track, pps, selected }: { clip: Clip; track: Track; pp
   );
 }
 
-/** Tags for what's applied to a footage clip, most noticeable first. */
-function clipTags(clip: Clip): { label: string }[] {
-  const tags: { label: string }[] = [];
-  if (clip.speed && clip.speed !== 1) tags.push({ label: `${clip.speed}×` });
-  if (clip.transitionIn && clip.transitionIn !== "none") tags.push({ label: clip.transitionIn });
-  if (clip.transitionOut && clip.transitionOut !== "none") tags.push({ label: `${clip.transitionOut} out` });
-  const adj = clip.adjust;
-  if (adj && Object.values(adj).some((v) => v)) tags.push({ label: "Warna" });
-  if (clip.kenBurns) tags.push({ label: "Ken Burns" });
-  if ((clip.fadeIn ?? 0) > 0 || (clip.fadeOut ?? 0) > 0) tags.push({ label: "Fade audio" });
-  if (clip.volume !== undefined && clip.volume !== 1) tags.push({ label: `Vol ${Math.round(clip.volume * 100)}%` });
-  return tags;
+/** Solid colour per kind of clip, so the timeline reads at a glance (no blue: selection is white). */
+const CLIP_COLOR = {
+  footage: "#b97d22",
+  media: "#8f5f1d",
+  zoom: "#6a4fd6",
+  caption: "#4a5060",
+  motion: "#b23d72",
+  audio: "#2f8a5a",
+};
+
+function clipLook(clip: Clip, track: Track, asset?: Asset) {
+  if (track.kind === "video") return { color: CLIP_COLOR.footage, name: "Clip" };
+  if (track.kind === "audio") return { color: CLIP_COLOR.audio, name: asset?.name ?? "Audio" };
+  const role = clipRole(clip);
+  if (role === "zoom") return { color: CLIP_COLOR.zoom, name: "Zoom" };
+  if (role === "caption") return { color: CLIP_COLOR.caption, name: clip.text?.trim() || "Text" };
+  if (role === "motion") return { color: CLIP_COLOR.motion, name: clip.motion ? templateMeta(clip.motion.template).name : "Motion" };
+  return { color: CLIP_COLOR.media, name: asset?.kind === "image" ? "Image" : "Video" };
 }
 
-/** The footage itself, frame by frame across the whole clip (like CapCut's filmstrip). */
-function Filmstrip({ clip, asset, pps, fallback }: { clip: Clip; asset?: Asset; pps: number; fallback?: string }) {
-  const strip = useFilmstrip(asset);
-  const ref = useRef<HTMLDivElement>(null);
-  const [h, setH] = useState(56);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => setH(el.clientHeight || 56));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  const aspect = asset?.width && asset.height ? asset.width / asset.height : 16 / 9;
-  const tileW = Math.max(24, Math.round(h * aspect));
-  const w = clip.duration * pps;
-  const count = Math.max(1, Math.ceil(w / tileW));
-  const speed = clip.speed ?? 1;
-
-  return (
-    <div ref={ref} className="pointer-events-none absolute inset-0 flex overflow-hidden bg-black/40" aria-hidden="true">
-      {Array.from({ length: count }, (_, i) => {
-        const src = strip?.frames.length ? strip.frames[nearestFrame(strip, clip.offset + ((i + 0.5) * tileW * speed) / pps)] : fallback;
-        return src ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img key={i} src={src} alt="" draggable={false} className="h-full shrink-0 object-cover" style={{ width: tileW }} />
-        ) : (
-          <span key={i} className="h-full shrink-0 border-r border-black/30 bg-panel-3" style={{ width: tileW }} />
-        );
-      })}
-    </div>
-  );
+/** The second line: length, plus what's applied (speed, zoom amount, effects). */
+function clipMeta(clip: Clip, track: Track): string {
+  const len = `${clip.duration.toFixed(1)}s`;
+  if (clip.zoom) return `${clip.zoom.scale.toFixed(1)}× · ${clip.zoom.follow ? "Auto" : "Manual"}`;
+  const parts = [len];
+  if (track.kind === "video" || track.kind === "audio") parts.push(`${clip.speed ?? 1}×`);
+  if (clip.transitionIn && clip.transitionIn !== "none") parts.push(clip.transitionIn);
+  if (clip.adjust && Object.values(clip.adjust).some((v) => v)) parts.push("Color");
+  if (clip.kenBurns) parts.push("Ken Burns");
+  if (clip.volume !== undefined && clip.volume !== 1) parts.push(`Vol ${Math.round(clip.volume * 100)}%`);
+  return parts.join(" · ");
 }
 
 /** Layer row under a screen point, for dragging overlay clips between layers. */

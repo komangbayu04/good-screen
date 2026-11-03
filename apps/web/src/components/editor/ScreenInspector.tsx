@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { Crosshair, Frame, Image as ImageIcon, LayoutTemplate, MousePointer2, Move, Plus, Trash2, ZoomIn } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import {
   DEFAULT_SCREEN_CURSOR,
   DEFAULT_SCREEN_STYLE,
@@ -24,7 +24,7 @@ import { Chips, FieldLabel, Section, SliderField, ToggleRow } from "./controls";
 type ScreenPatch = NonNullable<ClipPatch["screen"]>;
 const screenPatch = (clipId: string, screen: ScreenPatch): EditCommand => ({ type: "setClipProps", clipId, patch: { screen } });
 
-/* ------------------------------------------------------------------ Latar */
+/* ------------------------------------------------------------------ Background */
 
 export function BackgroundTab({ clip }: { clip: Clip }) {
   const dispatch = useEditor((s) => s.dispatch);
@@ -44,32 +44,33 @@ export function BackgroundTab({ clip }: { clip: Clip }) {
 
   return (
     <>
-      <Section title="Latar" icon={ImageIcon} onReset={() => set({ background: DEFAULT_SCREEN_STYLE.background })}>
-        <div className="grid grid-cols-4 gap-1.5">
+      <Section title="Background">
+        {/* Compact swatches, six to a row: a palette, not a gallery. */}
+        <div className="grid grid-cols-6 gap-2">
           {SCREEN_BACKGROUNDS.map((b) => {
             const on = bg.kind === "gradient" && bg.value === b.id;
             return (
               <button
                 key={b.id}
                 title={b.label}
-                aria-label={`Latar ${b.label}`}
+                aria-label={`${b.label} background`}
                 aria-pressed={on}
                 onClick={() => set({ background: { kind: "gradient", value: b.id } })}
-                className={`aspect-square rounded-[10px] ring-offset-2 ring-offset-panel ${on ? "ring-2 ring-secondary" : "ring-1 ring-ink/10"}`}
+                className={`aspect-square rounded-[10px] ring-offset-2 ring-offset-panel ${on ? "ring-[0.5px] ring-secondary/80" : "ring-1 ring-ink/10"}`}
                 style={{ backgroundImage: b.css }}
               />
             );
           })}
           <label
-            title="Warna polos"
+            title="Solid color"
             className={`relative flex aspect-square cursor-pointer items-center justify-center rounded-[10px] ring-offset-2 ring-offset-panel ${
-              bg.kind === "color" ? "ring-2 ring-secondary" : "ring-1 ring-ink/10"
+              bg.kind === "color" ? "ring-[0.5px] ring-secondary/80" : "ring-1 ring-ink/10"
             }`}
             style={{ background: bg.kind === "color" ? bg.value : "conic-gradient(#f87171,#facc15,#4ade80,#60a5fa,#c084fc,#f87171)" }}
           >
             <input
               type="color"
-              aria-label="Warna polos"
+              aria-label="Solid color"
               value={bg.kind === "color" ? bg.value : "#111111"}
               onChange={(e) => set({ background: { kind: "color", value: e.target.value } })}
               className="absolute inset-0 cursor-pointer opacity-0"
@@ -77,10 +78,10 @@ export function BackgroundTab({ clip }: { clip: Clip }) {
           </label>
           <button
             onClick={() => fileRef.current?.click()}
-            aria-label="Unggah gambar latar"
-            title="Gambar sendiri"
+            aria-label="Upload background image"
+            title="Your own image"
             className={`flex aspect-square items-center justify-center rounded-[10px] bg-panel-3/70 text-fg/75 ring-offset-2 ring-offset-panel ${
-              bg.kind === "image" ? "ring-2 ring-secondary" : "ring-1 ring-ink/10"
+              bg.kind === "image" ? "ring-[0.5px] ring-secondary/80" : "ring-1 ring-ink/10"
             }`}
           >
             <Plus className="size-4" />
@@ -98,18 +99,14 @@ export function BackgroundTab({ clip }: { clip: Clip }) {
           />
         </div>
       </Section>
-      <Section
-        title="Bingkai"
-        icon={Frame}
-        onReset={() => set({ padding: DEFAULT_SCREEN_STYLE.padding, radius: DEFAULT_SCREEN_STYLE.radius, shadow: DEFAULT_SCREEN_STYLE.shadow, reframe: DEFAULT_SCREEN_STYLE.reframe })}
-      >
-        <SliderField label="Jarak tepi" value={style.padding} min={0} max={20} step={0.5} decimals={1} suffix="%" toCommand={(v) => screenPatch(clip.id, { padding: v })} />
-        <SliderField label="Sudut" value={style.radius} min={0} max={60} suffix="px" toCommand={(v) => screenPatch(clip.id, { radius: v })} />
-        <SliderField label="Bayangan" value={Math.round(style.shadow * 100)} min={0} max={100} suffix="%" toCommand={(v) => screenPatch(clip.id, { shadow: v / 100 })} />
+      <Section title="Frame">
+        <SliderField label="Padding" value={style.padding} min={0} max={20} step={0.5} decimals={1} suffix="%" toCommand={(v) => screenPatch(clip.id, { padding: v })} />
+        <SliderField label="Corners" value={style.radius} min={0} max={60} suffix="px" toCommand={(v) => screenPatch(clip.id, { radius: v })} />
+        <SliderField label="Shadow" value={Math.round(style.shadow * 100)} min={0} max={100} suffix="%" toCommand={(v) => screenPatch(clip.id, { shadow: v / 100 })} />
         {tracked && (
           <>
-            <ToggleRow label="Reframe ikuti kursor" on={!!style.reframe} onChange={(reframe) => set({ reframe })} />
-            <p className="text-meta leading-relaxed text-muted">Di frame 1:1, 4:5, dan 9:16, rekaman mengisi frame dan bergeser mengikuti kursor.</p>
+            <ToggleRow label="Reframe to follow cursor" on={!!style.reframe} onChange={(reframe) => set({ reframe })} />
+            <p className="text-meta leading-relaxed text-muted">In 1:1, 4:5 and 9:16 frames, the recording fills the frame and pans to follow the cursor.</p>
           </>
         )}
       </Section>
@@ -118,7 +115,7 @@ export function BackgroundTab({ clip }: { clip: Clip }) {
   );
 }
 
-/* ----------------------------------------------------------------- Kursor */
+/* ----------------------------------------------------------------- Cursor */
 
 function CursorSection({ clip }: { clip: Clip }) {
   const dispatch = useEditor((s) => s.dispatch);
@@ -128,12 +125,12 @@ function CursorSection({ clip }: { clip: Clip }) {
   const cursorCmd = (patch: Partial<ScreenCursor>) => screenPatch(clip.id, { cursor: { ...cursor, ...patch } });
 
   return (
-    <Section title="Kursor" icon={MousePointer2} onReset={() => dispatch([screenPatch(clip.id, { cursor: DEFAULT_SCREEN_CURSOR })])}>
+    <Section title="Cursor">
       {!tracked ? (
-        <p className="text-meta leading-relaxed text-muted">Rekaman ini belum punya jejak kursor. Rekaman layar baru melacak kursor secara otomatis.</p>
+        <p className="text-meta leading-relaxed text-muted">This recording has no cursor track. New screen recordings track the cursor automatically.</p>
       ) : (
         <>
-          <ToggleRow label="Kursor custom" on={cursor.show} onChange={(show) => dispatch([cursorCmd({ show })])} />
+          <ToggleRow label="Custom cursor" on={cursor.show} onChange={(show) => dispatch([cursorCmd({ show })])} />
           {cursor.show && (
             <>
               <div className="grid grid-cols-4 gap-1.5">
@@ -145,7 +142,7 @@ function CursorSection({ clip }: { clip: Clip }) {
                       aria-pressed={on}
                       onClick={() => dispatch([cursorCmd({ style: c.id })])}
                       className={`flex flex-col items-center gap-1.5 rounded-[10px] pt-3 pb-2 text-meta transition-colors ${
-                        on ? "bg-secondary/10 text-fg ring-1 ring-secondary" : "bg-panel-3/40 text-muted hover:text-fg"
+                        on ? "is-selected" : "bg-panel-3/40 text-muted hover:text-fg"
                       }`}
                     >
                       <span className="flex h-7 items-start">
@@ -156,7 +153,7 @@ function CursorSection({ clip }: { clip: Clip }) {
                   );
                 })}
               </div>
-              <SliderField label="Ukuran" value={cursor.size} min={1} max={4} step={0.1} decimals={1} suffix="×" toCommand={(v) => cursorCmd({ size: v })} />
+              <SliderField label="Size" value={cursor.size} min={1} max={4} step={0.1} decimals={1} suffix="×" toCommand={(v) => cursorCmd({ size: v })} />
             </>
           )}
         </>
@@ -165,13 +162,13 @@ function CursorSection({ clip }: { clip: Clip }) {
   );
 }
 
-/* ----------------------------------------------------------------- Kamera */
+/* ----------------------------------------------------------------- Camera */
 
 const LAYOUTS: { id: CameraLayout; label: string }[] = [
-  { id: "screen", label: "Layar saja" },
+  { id: "screen", label: "Screen only" },
   { id: "overlay", label: "Overlay" },
   { id: "split", label: "Split" },
-  { id: "camera", label: "Kamera" },
+  { id: "camera", label: "Camera" },
 ];
 
 function LayoutGlyph({ id }: { id: CameraLayout }) {
@@ -201,21 +198,21 @@ export function CameraTab({ clip }: { clip: Clip }) {
   const cam = clip.screen?.camera;
   if (!cam)
     return (
-      <Section title="Kamera" icon={LayoutTemplate}>
-        <p className="text-meta leading-relaxed text-muted">Rekaman ini tanpa webcam.</p>
+      <Section title="Camera">
+        <p className="text-meta leading-relaxed text-muted">This recording has no webcam.</p>
       </Section>
     );
   const setCam = (camera: Partial<ScreenCamera>) => dispatch([screenPatch(clip.id, { camera })]);
   const CORNERS: { id: CameraCorner; label: string }[] = [
-    { id: "tl", label: "Kiri atas" },
-    { id: "tr", label: "Kanan atas" },
-    { id: "bl", label: "Kiri bawah" },
-    { id: "br", label: "Kanan bawah" },
+    { id: "tl", label: "Top left" },
+    { id: "tr", label: "Top right" },
+    { id: "bl", label: "Bottom left" },
+    { id: "br", label: "Bottom right" },
   ];
 
   return (
     <>
-      <Section title="Layout" icon={LayoutTemplate}>
+      <Section title="Layout">
         <div className="grid grid-cols-4 gap-1.5">
           {LAYOUTS.map((l) => {
             const on = cam.layout === l.id;
@@ -225,7 +222,7 @@ export function CameraTab({ clip }: { clip: Clip }) {
                 aria-pressed={on}
                 onClick={() => setCam({ layout: l.id })}
                 className={`flex flex-col items-center gap-1.5 rounded-[10px] py-2.5 text-meta transition-colors ${
-                  on ? "bg-secondary/10 text-fg ring-1 ring-secondary" : "bg-panel-3/40 text-muted hover:text-fg"
+                  on ? "is-selected" : "bg-panel-3/40 text-muted hover:text-fg"
                 }`}
               >
                 <LayoutGlyph id={l.id} />
@@ -236,17 +233,17 @@ export function CameraTab({ clip }: { clip: Clip }) {
         </div>
       </Section>
       {cam.layout === "overlay" && (
-        <Section title="Bentuk dan posisi" icon={Move}>
+        <Section title="Shape and position">
           <Chips
             options={[
-              { id: "circle", label: "Lingkaran" },
+              { id: "circle", label: "Circle" },
               { id: "rounded", label: "Rounded" },
             ]}
             value={cam.shape}
             onChange={(shape) => setCam({ shape })}
           />
           <SliderField
-            label="Ukuran"
+            label="Size"
             value={Math.round(cam.size * 100)}
             min={12}
             max={45}
@@ -254,7 +251,7 @@ export function CameraTab({ clip }: { clip: Clip }) {
             toCommand={(v) => screenPatch(clip.id, { camera: { size: v / 100 } })}
           />
           <div className="flex items-center justify-between">
-            <FieldLabel>Pojok</FieldLabel>
+            <FieldLabel>Corner</FieldLabel>
             <div className="grid grid-cols-2 gap-1 rounded-[10px] bg-panel-3/50 p-1">
               {CORNERS.map((c) => (
                 <button
@@ -262,7 +259,7 @@ export function CameraTab({ clip }: { clip: Clip }) {
                   aria-label={c.label}
                   aria-pressed={cam.corner === c.id}
                   onClick={() => setCam({ corner: c.id })}
-                  className={`flex size-7 items-center justify-center rounded-[6px] ${cam.corner === c.id ? "bg-secondary text-on-secondary" : "text-muted hover:bg-panel-3"}`}
+                  className={`flex size-7 items-center justify-center rounded-[6px] ${cam.corner === c.id ? "is-selected" : "text-muted hover:bg-panel-3"}`}
                 >
                   <span className="size-2 rounded-full bg-current" />
                 </button>
@@ -298,19 +295,19 @@ export function ZoomTab({ clip }: { clip: Clip }) {
 
   return (
     <>
-      <Section title="Fokus" icon={Crosshair}>
+      <Section title="Focus">
         {!!asset?.cursor?.length && (
-          <ToggleRow label="Ikuti kursor" on={!!z.follow} onChange={(follow) => useEditor.getState().dispatch([zoomCmd({ follow })])} />
+          <ToggleRow label="Follow cursor" on={!!z.follow} onChange={(follow) => useEditor.getState().dispatch([zoomCmd({ follow })])} />
         )}
         {z.follow && asset?.cursor?.length ? (
-          <p className="text-meta leading-relaxed text-muted">Zoom bergerak mengikuti kursor. Matikan untuk memilih titik fokus sendiri.</p>
+          <p className="text-meta leading-relaxed text-muted">The zoom moves with the cursor. Turn this off to pick a focus point yourself.</p>
         ) : (
         <div
           ref={pickRef}
           role="slider"
           tabIndex={0}
-          aria-label="Titik fokus zoom"
-          aria-valuetext={`${Math.round(z.x * 100)}% dari kiri, ${Math.round(z.y * 100)}% dari atas`}
+          aria-label="Zoom focus point"
+          aria-valuetext={`${Math.round(z.x * 100)}% from the left, ${Math.round(z.y * 100)}% from the top`}
           onPointerDown={(e) => {
             (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
             useEditor.getState().beginGesture();
@@ -340,7 +337,7 @@ export function ZoomTab({ clip }: { clip: Clip }) {
           )}
           {/* Visible area at this zoom level, centred on the focus point. */}
           <span
-            className="pointer-events-none absolute rounded-[4px] border border-secondary bg-secondary/10"
+            className="pointer-events-none absolute rounded-[4px] border border-secondary/60 bg-secondary/10"
             style={{
               width: `${100 / z.scale}%`,
               height: `${100 / z.scale}%`,
@@ -348,18 +345,18 @@ export function ZoomTab({ clip }: { clip: Clip }) {
               top: `${z.y * 100 * (1 - 1 / z.scale)}%`,
             }}
           />
-          <span className="pointer-events-none absolute size-3 -translate-1/2 rounded-full border-2 border-white bg-secondary" style={{ left: `${z.x * 100}%`, top: `${z.y * 100}%` }} />
+          <span className="pointer-events-none absolute size-3 -translate-1/2 rounded-full border-2 border-white bg-accent" style={{ left: `${z.x * 100}%`, top: `${z.y * 100}%` }} />
         </div>
         )}
       </Section>
-      <Section title="Zoom" icon={ZoomIn} onReset={() => useEditor.getState().dispatch([zoomCmd({ scale: DEFAULT_ZOOM.scale, ease: DEFAULT_ZOOM.ease })])}>
-        <SliderField label="Perbesaran" value={z.scale} min={1.1} max={4} step={0.05} decimals={2} suffix="×" ticks={[2, 3]} toCommand={(v) => zoomCmd({ scale: v })} />
-        <SliderField label="Transisi" value={z.ease} min={0.1} max={1.5} step={0.05} decimals={2} suffix="s" toCommand={(v) => zoomCmd({ ease: v })} />
+      <Section title="Selected zoom">
+        <SliderField label="Magnification" value={z.scale} min={1.1} max={4} step={0.05} decimals={2} suffix="×" ticks={[2, 3]} toCommand={(v) => zoomCmd({ scale: v })} />
+        <SliderField label="Transition" value={z.ease} min={0.1} max={1.5} step={0.05} decimals={2} suffix="s" toCommand={(v) => zoomCmd({ ease: v })} />
         <button
           onClick={() => useEditor.getState().dispatch([{ type: "deleteClip", clipId: clip.id }])}
           className="flex h-9 w-full items-center justify-center gap-1.5 rounded-[10px] text-xs text-fg/80 ring-1 ring-line transition-colors hover:text-red-400"
         >
-          <Trash2 className="size-3.5" /> Hapus zoom
+          <Trash2 className="size-3.5" /> Delete zoom
         </button>
       </Section>
     </>

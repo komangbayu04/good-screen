@@ -2,16 +2,17 @@
 
 import { useEffect, useRef } from "react";
 import { CircleDot, Image as ImageIcon, ImagePlus, MousePointer2, Plus, Type, Webcam, X, ZoomIn, type LucideIcon } from "lucide-react";
-import { useEditor } from "@goodscreen/editor-core";
+import { DEFAULT_CAMERA_LAYOUT, DEFAULT_SCREEN_CURSOR, DEFAULT_SCREEN_STYLE, DEFAULT_ZOOM, useEditor, type EditCommand } from "@goodscreen/editor-core";
 import { toast } from "@/lib/toast";
 import { addMediaLayer, addText, footageClip, screenClip, useTools, type ToolId } from "@/lib/tools";
 import { seek } from "@/lib/player-bridge";
+import { ResetBar } from "./controls";
 import { BackgroundTab, CameraTab, ZoomTab } from "./ScreenInspector";
 
 const TOOLS: { id: ToolId; label: string; icon: LucideIcon }[] = [
-  { id: "background", label: "Latar dan bingkai", icon: ImageIcon },
+  { id: "background", label: "Background and frame", icon: ImageIcon },
   { id: "zoom", label: "Zoom", icon: ZoomIn },
-  { id: "camera", label: "Layout kamera", icon: Webcam },
+  { id: "camera", label: "Camera layout", icon: Webcam },
 ];
 
 /**
@@ -47,11 +48,11 @@ export function ToolRail({ onRecord }: { onRecord: () => void }) {
     <nav aria-label="Alat kanvas" className="flex w-11 shrink-0 flex-col items-center pt-2">
       <div className="glass flex flex-col gap-1 rounded-2xl p-1">
         {/* Record first, then layers: move them, add text, add a picture. Then the canvas tools. */}
-        <RailButton icon={CircleDot} label="Rekam" accent onClick={onRecord} />
+        <RailButton icon={CircleDot} label="Record" accent onClick={onRecord} />
         <span className="mx-2 my-0.5 h-px bg-ink/[0.08]" aria-hidden="true" />
-        <RailButton icon={MousePointer2} label="Geser layer (V)" active={move} onClick={() => useTools.getState().setMove(!move)} />
-        <RailButton icon={Type} label="Teks (T)" onClick={() => addText()} />
-        <RailButton icon={ImagePlus} label="Tambah gambar, video, atau audio" onClick={() => fileRef.current?.click()} />
+        <RailButton icon={MousePointer2} label="Move layers (V)" active={move} onClick={() => useTools.getState().setMove(!move)} />
+        <RailButton icon={Type} label="Text (T)" onClick={() => addText()} />
+        <RailButton icon={ImagePlus} label="Add image, video or audio" onClick={() => fileRef.current?.click()} />
         <input
           ref={fileRef}
           type="file"
@@ -59,7 +60,7 @@ export function ToolRail({ onRecord }: { onRecord: () => void }) {
           hidden
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (f) addMediaLayer(f).catch((err) => toast(err instanceof Error ? err.message : "File tidak bisa dipakai"));
+            if (f) addMediaLayer(f).catch((err) => toast(err instanceof Error ? err.message : "This file can't be used"));
             e.target.value = "";
           }}
         />
@@ -83,8 +84,8 @@ export function ToolPanel({ tool, onRecord }: { tool: ToolId; onRecord: () => vo
         <h2 className="flex-1 text-ui font-semibold">{meta.label}</h2>
         <button
           onClick={() => useTools.getState().close()}
-          aria-label="Tutup alat"
-          title="Tutup (Esc)"
+          aria-label="Close tool"
+          title="Close (Esc)"
           className="flex size-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-panel-3 hover:text-fg"
         >
           <X className="size-4" />
@@ -93,8 +94,45 @@ export function ToolPanel({ tool, onRecord }: { tool: ToolId; onRecord: () => vo
       <div className="scroll-fade scrollbar-thin min-h-0 flex-1 overflow-y-auto">
         <ToolBody tool={tool} onRecord={onRecord} />
       </div>
+      <ToolReset tool={tool} />
     </section>
   );
+}
+
+/** The tool panel's one Reset: everything the panel shows goes back to its default. */
+function ToolReset({ tool }: { tool: ToolId }) {
+  // Re-render when the selection or project changes, so the button knows what it would reset.
+  useEditor((s) => s.project);
+  const selected = useEditor((s) => s.project.clips.find((c) => c.id === s.selectedClipId));
+  const clip = screenClip();
+  const commands: EditCommand[] | null =
+    tool === "zoom"
+      ? selected?.zoom
+        ? [{ type: "setClipProps", clipId: selected.id, patch: { zoom: { scale: DEFAULT_ZOOM.scale, ease: DEFAULT_ZOOM.ease } } }]
+        : null
+      : !clip
+        ? null
+        : tool === "background"
+          ? [
+              {
+                type: "setClipProps",
+                clipId: clip.id,
+                patch: {
+                  screen: {
+                    background: DEFAULT_SCREEN_STYLE.background,
+                    padding: DEFAULT_SCREEN_STYLE.padding,
+                    radius: DEFAULT_SCREEN_STYLE.radius,
+                    shadow: DEFAULT_SCREEN_STYLE.shadow,
+                    reframe: DEFAULT_SCREEN_STYLE.reframe,
+                    cursor: DEFAULT_SCREEN_CURSOR,
+                  },
+                },
+              },
+            ]
+          : clip.screen?.camera
+            ? [{ type: "setClipProps", clipId: clip.id, patch: { screen: { camera: DEFAULT_CAMERA_LAYOUT } } }]
+            : null;
+  return <ResetBar onReset={() => commands && useEditor.getState().dispatch(commands)} disabled={!commands} />;
 }
 
 function ToolBody({ tool, onRecord }: { tool: ToolId; onRecord: () => void }) {
@@ -113,9 +151,9 @@ function ToolBody({ tool, onRecord }: { tool: ToolId; onRecord: () => void }) {
 function NoScreen({ onRecord }: { onRecord: () => void }) {
   return (
     <div className="space-y-3 p-4 text-center">
-      <p className="text-ui text-fg/85">Belum ada rekaman layar</p>
+      <p className="text-ui text-fg/85">No screen recording yet</p>
       <button onClick={onRecord} className="mx-auto flex h-9 items-center gap-2 rounded-full bg-fg px-4 text-xs font-semibold text-bg">
-        <span className="size-2 rounded-full bg-red-600" aria-hidden="true" /> Mulai rekam
+        <span className="size-2 rounded-full bg-red-600" aria-hidden="true" /> Start recording
       </button>
     </div>
   );
@@ -130,7 +168,7 @@ function ZoomTool() {
 
   const add = () => {
     const clip = screenClip() ?? footageClip();
-    if (!clip) return toast("Tambahkan video ke timeline dulu, lalu zoom bisa dipasang di atasnya.");
+    if (!clip) return toast("Add a video to the timeline first, then zooms can go on top of it.");
     const { playhead, dispatch, select } = useEditor.getState();
     const start = playhead >= clip.start && playhead < clip.start + clip.duration ? playhead : clip.start;
     const id = crypto.randomUUID().slice(0, 8);
@@ -143,8 +181,9 @@ function ZoomTool() {
   return (
     <>
       <div className="space-y-2 border-b border-ink/[0.06] p-3">
-        <button onClick={add} className="bg-accent-grad flex h-9 w-full items-center justify-center gap-1.5 rounded-[10px] text-xs font-semibold text-on-accent">
-          <Plus className="size-3.5" /> Tambah zoom di playhead
+        {/* Secondary: the orange primary is kept for each screen's main action (Export, Record). */}
+        <button onClick={add} className="flex h-9 w-full items-center justify-center gap-1.5 rounded-[10px] bg-panel-3 text-xs font-medium text-fg transition-colors hover:bg-line">
+          <Plus className="size-3.5" /> Add zoom at playhead
         </button>
         {zooms.length > 0 && (
           <ul className="space-y-1" aria-label="Segmen zoom">
@@ -157,7 +196,7 @@ function ZoomTool() {
                   }}
                   aria-pressed={selected?.id === z.id}
                   className={`flex h-8 w-full items-center gap-2 rounded-[8px] px-2.5 text-left text-xs transition-colors ${
-                    selected?.id === z.id ? "bg-secondary/10 text-fg ring-1 ring-secondary" : "text-fg/80 hover:bg-panel-3"
+                    selected?.id === z.id ? "is-selected" : "text-fg/80 hover:bg-panel-3"
                   }`}
                 >
                   <ZoomIn className="size-3.5 text-muted" />
@@ -171,7 +210,7 @@ function ZoomTool() {
           </ul>
         )}
       </div>
-      {selected ? <ZoomTab clip={selected} /> : zooms.length > 0 && <p className="p-4 text-meta text-muted">Pilih segmen zoom untuk mengatur fokus dan perbesarannya.</p>}
+      {selected ? <ZoomTab clip={selected} /> : zooms.length > 0 && <p className="p-4 text-meta text-muted">Select a zoom segment to set its focus and magnification.</p>}
     </>
   );
 }
@@ -184,7 +223,7 @@ function RailButton({ icon: Icon, label, onClick, active, accent }: { icon: Luci
       aria-pressed={accent ? undefined : !!active}
       title={label}
       className={`flex size-9 items-center justify-center rounded-[12px] transition-colors ${
-        active ? "bg-secondary/15 text-secondary ring-1 ring-secondary/30" : accent ? "text-red-400 hover:bg-panel-3" : "text-fg/85 hover:bg-panel-3"
+        active ? "is-selected" : accent ? "text-red-400 hover:bg-panel-3" : "text-fg/85 hover:bg-panel-3"
       }`}
     >
       <Icon className="size-[18px]" />

@@ -42,10 +42,10 @@ export function zoomAt(zoomClips: Clip[], t: number, fps: number, follow?: (t: n
 
 /** Custom pointers: an arrow drawn tip-on-tip over the recorded one. */
 export const CURSOR_STYLES: { id: CursorStyleId; label: string; fill: string; stroke: string; halo?: string }[] = [
-  { id: "white", label: "Putih", fill: "#ffffff", stroke: "#000000" },
-  { id: "black", label: "Hitam", fill: "#111111", stroke: "#ffffff" },
-  { id: "accent", label: "Biru", fill: "#3b82f6", stroke: "#ffffff" },
-  { id: "highlight", label: "Sorotan", fill: "#ffffff", stroke: "#000000", halo: "rgba(250, 204, 21, 0.45)" },
+  { id: "white", label: "White", fill: "#ffffff", stroke: "#000000" },
+  { id: "black", label: "Black", fill: "#111111", stroke: "#ffffff" },
+  { id: "accent", label: "Orange", fill: "#ff6b1a", stroke: "#ffffff" },
+  { id: "highlight", label: "Highlight", fill: "#ffffff", stroke: "#000000", halo: "rgba(250, 204, 21, 0.45)" },
 ];
 
 /**

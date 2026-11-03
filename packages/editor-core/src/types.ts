@@ -145,6 +145,9 @@ export interface ScreenCamera {
   corner: CameraCorner;
 }
 
+/** How a new take's webcam is laid out: a circle in the bottom-right corner. */
+export const DEFAULT_CAMERA_LAYOUT: Omit<ScreenCamera, "assetId"> = { layout: "overlay", shape: "circle", size: 0.24, corner: "br" };
+
 export interface ScreenStyle {
   background: ScreenBackground;
   /** Space around the recording, % of the canvas' short side. */

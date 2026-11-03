@@ -74,18 +74,18 @@ function PipBar() {
     <div className="flex h-screen items-center gap-2 px-3">
       <span className={`size-2.5 shrink-0 rounded-full ${paused ? "bg-amber-400" : "bg-red-500"}`} aria-hidden="true" />
       <span className="flex-1 font-mono text-lg text-fg tabular-nums">
-        {rec.status === "countdown" ? `Mulai dalam ${rec.countdown}` : formatTime(seconds)}
+        {rec.status === "countdown" ? `Starting in ${rec.countdown}` : formatTime(seconds)}
       </span>
       {rec.status !== "countdown" && (
         <button
           onClick={paused ? rec.resume : rec.pause}
-          aria-label={paused ? "Lanjut" : "Jeda"}
+          aria-label={paused ? "Resume" : "Pause"}
           className="flex size-10 items-center justify-center rounded-full bg-panel-3 text-fg"
         >
           {paused ? <Play className="size-4 fill-current" /> : <Pause className="size-4 fill-current" />}
         </button>
       )}
-      <button onClick={rec.stop} aria-label="Stop dan simpan" className="flex size-10 items-center justify-center rounded-full bg-red-600 text-white">
+      <button onClick={rec.stop} aria-label="Stop and save" className="flex size-10 items-center justify-center rounded-full bg-red-600 text-white">
         <Square className="size-3.5 fill-current" />
       </button>
     </div>

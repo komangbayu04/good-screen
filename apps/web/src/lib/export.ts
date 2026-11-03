@@ -19,7 +19,7 @@ export async function exportProject(
 
   const check = await canRenderMediaOnWeb({ container: opts.container, width, height, scale: opts.scale });
   if (!check.canRender) {
-    throw new Error(check.issues.filter((i) => i.severity === "error").map((i) => i.message).join("; ") || "Browser ini belum mendukung render video");
+    throw new Error(check.issues.filter((i) => i.severity === "error").map((i) => i.message).join("; ") || "This browser can't render video yet");
   }
 
   const result = await renderMediaOnWeb({

@@ -43,12 +43,15 @@ export function ensureTracks(p: Project): Project {
   return { ...p, tracks, clips };
 }
 
-/** Frame presets (all 1080 px on the short side). Screen recordings default to 16:9. */
+/**
+ * Frame presets (all 1080 px on the short side). Screen recordings default to 16:9.
+ * `name` is the one-word shape shown under the ratio; `hint` says where it's used.
+ */
 export const FRAME_PRESETS = [
-  { id: "16:9", label: "16:9", hint: "Layar / YouTube", width: 1920, height: 1080 },
-  { id: "1:1", label: "1:1", hint: "Square", width: 1080, height: 1080 },
-  { id: "4:5", label: "4:5", hint: "Feed Instagram", width: 1080, height: 1350 },
-  { id: "9:16", label: "9:16", hint: "Reels / TikTok / Shorts", width: 1080, height: 1920 },
+  { id: "16:9", label: "16:9", name: "Landscape", hint: "YouTube, X, LinkedIn", width: 1920, height: 1080 },
+  { id: "1:1", label: "1:1", name: "Square", hint: "LinkedIn and X feeds", width: 1080, height: 1080 },
+  { id: "4:5", label: "4:5", name: "Portrait", hint: "Instagram and LinkedIn feeds", width: 1080, height: 1350 },
+  { id: "9:16", label: "9:16", name: "Vertical", hint: "Threads, Reels, TikTok, Shorts", width: 1080, height: 1920 },
 ] as const;
 
 export const FPS_OPTIONS = [24, 25, 30, 60] as const;
@@ -56,7 +59,7 @@ export const FPS_OPTIONS = [24, 25, 30, 60] as const;
 export const framePresetOf = (p: Pick<Project, "width" | "height">) =>
   FRAME_PRESETS.find((f) => f.width === p.width && f.height === p.height) ?? FRAME_PRESETS[0];
 
-export function createProject(name = "Rekaman tanpa judul"): Project {
+export function createProject(name = "Untitled recording"): Project {
   return {
     id: nanoid(10),
     name,

@@ -15,7 +15,7 @@ export function ProjectFiles({
   emptyText,
   onPicked,
   onPick,
-  pickLabel = "ke timeline",
+  pickLabel = "to the timeline",
   headless,
 }: {
   title: string;
@@ -55,13 +55,13 @@ export function ProjectFiles({
           e.target.value = "";
         }}
       />
-      {!headless && <PanelHeader title={title} meta={`${shown.length} file`} />}
+      {!headless && <PanelHeader title={title} meta={`${shown.length} file${shown.length === 1 ? "" : "s"}`} />}
 
       <div className="scroll-fade scrollbar-thin min-h-0 flex-1 overflow-y-auto px-2 pb-2">
         {shown.length === 0 ? (
           <div className="px-4 py-10 text-center">
             <Film className="mx-auto size-6 text-muted/60" />
-            <p className="mt-2 text-sm text-fg/80">Belum ada file</p>
+            <p className="mt-2 text-sm text-fg/80">No files yet</p>
             <p className="mt-1 text-xs leading-relaxed text-muted">{emptyText}</p>
           </div>
         ) : (
@@ -79,7 +79,7 @@ export function ProjectFiles({
           onClick={() => fileRef.current?.click()}
           className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg text-xs text-muted transition-colors hover:bg-panel-3 hover:text-fg"
         >
-          <Plus className="size-3.5" /> Tambah file
+          <Plus className="size-3.5" /> Add files
         </button>
       </div>
     </div>
@@ -95,13 +95,13 @@ function FileRow({ asset, onAdd, pickLabel }: { asset: Asset; onAdd: () => void;
         ? `${asset.width}×${asset.height}`
         : asset.kind === "audio"
           ? "Audio"
-          : "Gambar";
+          : "Image";
 
   return (
     <li className="group relative">
       <button
         onClick={onAdd}
-        title={`Tambah "${asset.name}" ${pickLabel}`}
+        title={`Add "${asset.name}" ${pickLabel}`}
         className="hover-surface flex w-full items-center gap-3 rounded-[14px] p-2 text-left transition-colors"
       >
         <div
@@ -125,7 +125,7 @@ function FileRow({ asset, onAdd, pickLabel }: { asset: Asset; onAdd: () => void;
       </button>
       <button
         onClick={() => useEditor.getState().removeAsset(asset.id)}
-        aria-label={`Hapus ${asset.name}`}
+        aria-label={`Delete ${asset.name}`}
         className="absolute top-1/2 right-2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted opacity-100 transition-opacity hover:bg-panel-3 hover:text-fg lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100"
       >
         <Trash2 className="size-3.5" />

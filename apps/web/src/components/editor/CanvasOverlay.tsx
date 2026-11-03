@@ -153,7 +153,7 @@ export function CanvasOverlay() {
     <div
       ref={ref}
       role="application"
-      aria-label="Kanvas: klik untuk memilih, seret untuk memindah"
+      aria-label="Canvas: click to select, drag to move"
       onPointerDown={onPointerDown}
       onDoubleClick={(e) => {
         const clip = hit(e.clientX, e.clientY);
@@ -165,7 +165,7 @@ export function CanvasOverlay() {
     >
       {box && selected && !editing && (
         <div
-          className="pointer-events-none absolute rounded-[3px] ring-[1.5px] ring-secondary"
+          className="pointer-events-none absolute rounded-[3px] ring-[0.5px] ring-secondary/80"
           style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
         >
           {canScale &&
@@ -173,7 +173,7 @@ export function CanvasOverlay() {
               <span
                 key={pos}
                 onPointerDown={scaleFrom}
-                className={`pointer-events-auto absolute size-3 rounded-full border-[1.5px] border-secondary bg-white ${pos}`}
+                className={`pointer-events-auto absolute size-3 rounded-full border border-black/30 bg-white ${pos}`}
               />
             ))}
         </div>
@@ -213,8 +213,8 @@ function TextEditor({ clip, box }: { clip: Clip; box: Box }) {
     <textarea
       ref={ref}
       value={value}
-      placeholder="Ketik teks…"
-      aria-label="Teks"
+      placeholder="Type text…"
+      aria-label="Text"
       rows={1}
       onPointerDown={(e) => e.stopPropagation()}
       onChange={(e) => {
@@ -234,7 +234,7 @@ function TextEditor({ clip, box }: { clip: Clip; box: Box }) {
           ref.current?.blur();
         }
       }}
-      className="absolute resize-none rounded-[8px] bg-black/75 px-3 py-2 text-center text-base font-bold text-white shadow-2xl ring-2 ring-secondary outline-none placeholder:text-white/50"
+      className="absolute resize-none rounded-[8px] bg-black/75 px-3 py-2 text-center text-base font-bold text-white shadow-2xl ring-[0.5px] ring-secondary/80 outline-none placeholder:text-white/50"
       style={{
         left: box.x + box.w / 2 - w / 2,
         top: box.y + box.h / 2 - Math.max(40, box.h) / 2,

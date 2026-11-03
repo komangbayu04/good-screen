@@ -45,19 +45,19 @@ export function EditToolbar({ mobile }: { mobile?: boolean }) {
         </>
       )}
       <span className="mx-1.5 h-4 w-px bg-line" aria-hidden="true" />
-      <IconButton label="Potong di playhead (S)" onClick={splitAtPlayhead}>
+      <IconButton label="Split at playhead (S)" onClick={splitAtPlayhead}>
         <Scissors className="size-4" />
       </IconButton>
-      <IconButton label="Hapus clip (Delete)" onClick={deleteSelected} disabled={!hasSelection}>
+      <IconButton label="Delete clip (Delete)" onClick={deleteSelected} disabled={!hasSelection}>
         <Trash2 className="size-4" />
       </IconButton>
       <ToolbarKeyframe />
       <div className="ml-auto flex items-center gap-0.5">
-        <IconButton label="Perkecil timeline" onClick={() => setZoom(pps / 1.4)}>
+        <IconButton label="Zoom timeline out" onClick={() => setZoom(pps / 1.4)}>
           <ZoomOut className="size-4" />
         </IconButton>
         {!mobile && <span className="w-10 text-center font-mono text-meta text-muted tabular-nums">{Math.round((pps / 40) * 100)}%</span>}
-        <IconButton label="Perbesar timeline" onClick={() => setZoom(pps * 1.4)}>
+        <IconButton label="Zoom timeline in" onClick={() => setZoom(pps * 1.4)}>
           <ZoomIn className="size-4" />
         </IconButton>
       </div>

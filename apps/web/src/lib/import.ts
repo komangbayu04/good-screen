@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { DEFAULT_SCREEN_STYLE, autoZoomSegments, trackEnd, useEditor, type Asset, type CursorSample, type EditCommand } from "@goodscreen/editor-core";
+import { DEFAULT_CAMERA_LAYOUT, DEFAULT_SCREEN_STYLE, autoZoomSegments, trackEnd, useEditor, type Asset, type CursorSample, type EditCommand } from "@goodscreen/editor-core";
 import { fileToAsset } from "./media";
 import { saveMedia } from "./persistence";
 
@@ -14,14 +14,14 @@ export async function importFiles(files: Iterable<File>) {
     try {
       const asset = await fileToAsset(file);
       if (!asset) {
-        errors.push(`${file.name}: format tidak didukung`);
+        errors.push(`${file.name}: unsupported format`);
         continue;
       }
       useEditor.getState().addAsset(asset);
       void saveMedia(asset.id, file);
       assets.push(asset);
     } catch (e) {
-      errors.push(`${file.name}: ${e instanceof Error ? e.message : "gagal dibaca"}`);
+      errors.push(`${file.name}: ${e instanceof Error ? e.message : "couldn't be read"}`);
     }
   }
   return { assets, errors };
@@ -34,7 +34,7 @@ export async function importFiles(files: Iterable<File>) {
  */
 export async function importScreenTake(screenFile: File, cameraFile: File | null, cursor?: CursorSample[]) {
   const screen = await fileToAsset(screenFile);
-  if (!screen) throw new Error("rekaman layar tidak terbaca");
+  if (!screen) throw new Error("couldn't read the screen recording");
   if (cursor?.length) screen.cursor = cursor;
   const camera = cameraFile ? await fileToAsset(cameraFile).catch(() => null) : null;
 
@@ -64,7 +64,7 @@ export async function importScreenTake(screenFile: File, cameraFile: File | null
       patch: {
         screen: {
           ...DEFAULT_SCREEN_STYLE,
-          camera: camera ? { assetId: camera.id, layout: "overlay", shape: "circle", size: 0.24, corner: "br" } : undefined,
+          camera: camera ? { assetId: camera.id, ...DEFAULT_CAMERA_LAYOUT } : undefined,
         },
       },
     },

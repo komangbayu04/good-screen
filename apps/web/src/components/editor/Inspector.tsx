@@ -1,9 +1,8 @@
 "use client";
 
-import { Frame, MousePointerClick } from "lucide-react";
 import { FPS_OPTIONS, FRAME_PRESETS, framePresetOf, useEditor } from "@goodscreen/editor-core";
 import { ClipInspector } from "./ClipInspector";
-import { FieldLabel, Section } from "./controls";
+import { FieldLabel } from "./controls";
 
 /** Right panel: the selected clip's sub-menus, or project-level tools when nothing is selected. */
 export function Inspector() {
@@ -14,50 +13,80 @@ export function Inspector() {
   if (clip && track) return <ClipInspector key={clip.id} clip={clip} track={track} asset={asset} />;
 
   return (
-    // Same structure as a clip's Edit tab: a header line, then collapsible sections.
+    // Nothing selected: the project's output settings, titled like every other panel
+    // (same header height as the tool panels), as flat labelled groups.
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center gap-2.5 border-b border-ink/[0.06] px-3.5 py-3">
-        <MousePointerClick className="size-4 shrink-0 text-muted" />
-        <p className="text-xs leading-relaxed text-muted">
-Pilih clip di timeline untuk mengeditnya.
-        </p>
+      <div className="flex h-12 shrink-0 items-center border-b border-ink/[0.06] px-4">
+        <h2 className="text-ui font-semibold">Canvas</h2>
       </div>
-      <div className="scroll-fade scrollbar-thin min-h-0 flex-1 overflow-y-auto">
-        <Section title="Canvas" icon={Frame}>
-          <FieldLabel>Frame</FieldLabel>
-          <FramePicker />
-          <FieldLabel>Frame rate</FieldLabel>
+      <div className="scroll-fade scrollbar-thin min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
+        <Group label="Aspect ratio">
+          <FramePicker detailed />
+        </Group>
+        <Group label="Frame rate">
           <FpsPicker />
-        </Section>
+        </Group>
+        <OutputSize />
+        <p className="text-meta leading-relaxed text-muted">Select a clip on the timeline to edit it.</p>
       </div>
     </div>
   );
 }
 
-export function FramePicker() {
+function Group({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <FieldLabel>{label}</FieldLabel>
+      {children}
+    </div>
+  );
+}
+
+function OutputSize() {
+  const width = useEditor((s) => s.project.width);
+  const height = useEditor((s) => s.project.height);
+  return (
+    <div className="flex items-center justify-between">
+      <FieldLabel>Output size</FieldLabel>
+      <span className="font-mono text-xs text-fg/90 tabular-nums">
+        {width} × {height} <span className="text-muted">px</span>
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Aspect ratio cards: a true-to-shape outline, the ratio, and (when `detailed`) its name.
+ * Where each one is used is in the tooltip. Selected = tinted fill + secondary ring,
+ * the same as every other card picker (cursor style, camera layout, animation).
+ */
+export function FramePicker({ detailed }: { detailed?: boolean }) {
   const project = useEditor((s) => s.project);
   const active = framePresetOf(project);
   return (
-    <div className="grid grid-cols-4 gap-1.5">
+    <div role="radiogroup" aria-label="Aspect ratio" className="grid grid-cols-4 gap-1.5">
       {FRAME_PRESETS.map((f) => {
         const on = f.id === active.id;
-        const scale = 22 / Math.max(f.width, f.height);
+        const scale = 20 / Math.max(f.width, f.height);
         return (
           <button
             key={f.id}
+            role="radio"
+            aria-checked={on}
             title={f.hint}
             onClick={() => !on && useEditor.getState().setFormat({ width: f.width, height: f.height })}
-            className={`flex flex-col items-center gap-1.5 rounded-xl py-2.5 text-meta transition-colors ${
-              on ? "bg-secondary/10 text-fg ring-1 ring-secondary" : "bg-panel-3/40 text-muted hover:text-fg"
+            className={`flex flex-col items-center gap-1 rounded-[10px] pt-2.5 pb-2 transition-colors ${
+              on ? "is-selected" : "bg-panel-3/40 text-muted hover:bg-panel-3/70 hover:text-fg"
             }`}
           >
-            <span className="flex h-6 items-center">
+            <span className="flex h-6 items-center" aria-hidden="true">
               <span
-                className={`rounded-[3px] border-[1.5px] ${on ? "border-secondary" : "border-current"}`}
+                className={`rounded-[3px] border ${on ? "border-secondary bg-secondary/10" : "border-current"}`}
                 style={{ width: f.width * scale, height: f.height * scale }}
               />
             </span>
-            {f.label}
+            <span className="font-mono text-meta tabular-nums">{f.label}</span>
+            {detailed && <span className={`text-2xs ${on ? "text-fg/70" : "text-muted"}`}>{f.name}</span>}
           </button>
         );
       })}
@@ -65,15 +94,19 @@ export function FramePicker() {
   );
 }
 
+/** Frame rate: the same segmented control as Format and Quality elsewhere. */
 export function FpsPicker() {
   const fps = useEditor((s) => s.project.fps);
   return (
-    <div className="grid grid-cols-4 gap-1 rounded-full bg-panel-3/40 p-1">
+    <div role="radiogroup" aria-label="Frame rate" className="grid grid-cols-4 gap-1 rounded-[10px] bg-panel-3/50 p-1">
       {FPS_OPTIONS.map((f) => (
         <button
           key={f}
+          role="radio"
+          aria-checked={f === fps}
+          aria-label={`${f} fps`}
           onClick={() => f !== fps && useEditor.getState().setFormat({ fps: f })}
-          className={`h-7 rounded-full font-mono text-xs transition-colors ${f === fps ? "bg-secondary text-on-secondary" : "text-muted hover:text-fg"}`}
+          className={`h-7 rounded-[7px] font-mono text-xs tabular-nums transition-colors ${f === fps ? "is-selected font-medium" : "text-muted hover:text-fg"}`}
         >
           {f}
         </button>

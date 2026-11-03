@@ -13,7 +13,6 @@ import { FloatingControls } from "./FloatingControls";
 import { useRecorder } from "@/lib/recorder";
 import { trackCursor } from "@/lib/cursor-track";
 import { addText, useTools } from "@/lib/tools";
-import { LogoMark } from "./Logo";
 import { seek, togglePlay } from "@/lib/player-bridge";
 import { PlayerControls, Preview } from "./Preview";
 import { RightPanel } from "./RightPanel";
@@ -56,7 +55,7 @@ export function Editor() {
 
   const onDropFiles = async (files: FileList) => {
     const { errors } = await importFiles(files);
-    if (errors.length) setToast(`Gagal mengunggah ${errors.join(", ")}. Gunakan file video, audio, atau gambar, lalu coba lagi.`);
+    if (errors.length) setToast(`Couldn't upload ${errors.join(", ")}. Use a video, audio or image file, then try again.`);
   };
 
   // Restore the last session first, then start autosaving (so an empty editor never overwrites it).
@@ -71,7 +70,7 @@ export function Editor() {
       })
       .catch((e) => {
         console.error("[persistence] restore failed", e);
-        useToast.getState().show("Proyek tersimpan belum bisa dimuat. Muat ulang halaman; perubahan baru tidak disimpan sampai ini berhasil.");
+        useToast.getState().show("Your saved projects couldn't be loaded. Reload the page; new changes aren't saved until this works.");
         useSaveStatus.setState({ status: "error" });
       });
     return () => {
@@ -180,7 +179,7 @@ export function Editor() {
             {/* Tools sit beside the preview only, so the timeline below keeps its full width. */}
             <div className="flex min-h-[180px] flex-1 gap-2">
               <div className="min-w-0 flex-1">
-                <Preview onRecord={openRecord} />
+                <Preview />
               </div>
               <ToolRail onRecord={openRecord} />
             </div>
@@ -206,7 +205,6 @@ export function Editor() {
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1">
             <Preview
-              onRecord={openRecord}
               mobile={{ onOpenMenu: () => setSheet({ kind: "library", menu: "project" }) }}
             />
           </div>
@@ -248,7 +246,7 @@ export function Editor() {
       {dragging && (
         <div className="pointer-events-none fixed inset-3 z-50 flex flex-col items-center justify-center gap-2 rounded-[26px] border-2 border-dashed border-secondary bg-black/70">
           <Upload className="size-6 text-secondary" />
-          <p className="text-lg font-semibold">Lepas untuk menambahkan ke Media dan timeline</p>
+          <p className="text-lg font-semibold">Drop to add to the timeline</p>
         </div>
       )}
 
@@ -268,10 +266,8 @@ export function Editor() {
 function Header({ desktop, onProjects, onExport }: { desktop: boolean; onProjects: () => void; onExport: () => void }) {
   const name = useEditor((s) => s.project.name);
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between gap-2 bg-black/30 px-3 lg:grid lg:h-16 lg:grid-cols-[1fr_auto_1fr] lg:bg-transparent lg:px-4">
-      <div className="hidden items-center lg:flex">
-        <LogoMark className="size-9 drop-shadow-[0_6px_14px_rgb(255_107_26/0.35)]" />
-      </div>
+    // The project is the header's anchor on the left; the one action (Export) sits on the right.
+    <header className="flex h-12 shrink-0 items-center justify-between gap-2 bg-black/30 px-3 lg:h-16 lg:bg-transparent lg:px-4">
       <div className="flex min-w-0 items-center gap-2">
         {/* Projects sit above the workspaces: switch, filter by tag, or start a new one. */}
         {desktop ? (
@@ -291,7 +287,7 @@ function Header({ desktop, onProjects, onExport }: { desktop: boolean; onProject
           onClick={onExport}
           className="bg-accent-grad flex h-9 items-center gap-1.5 rounded-full px-4 text-sm font-semibold text-on-accent"
         >
-          <Upload className="size-4" /> Ekspor
+          <Upload className="size-4" /> Export
         </button>
       </div>
     </header>
@@ -302,7 +298,7 @@ function Header({ desktop, onProjects, onExport }: { desktop: boolean; onProject
 function SaveIndicator() {
   const status = useSaveStatus((s) => s.status);
   if (status === "idle") return null;
-  const label = status === "saving" ? "Menyimpan…" : status === "error" ? "Gagal menyimpan" : "Tersimpan";
+  const label = status === "saving" ? "Saving…" : status === "error" ? "Couldn't save" : "Saved";
   return (
     <span role="status" className={`hidden items-center gap-1 text-meta lg:flex ${status === "error" ? "text-red-400" : "text-muted"}`}>
       {status === "saving" ? <Loader2 className="size-3 animate-spin" /> : status === "error" ? <CloudOff className="size-3" /> : <Check className="size-3" />}
@@ -354,7 +350,7 @@ function ResizeHandle({
       ref={ref}
       role="separator"
       aria-orientation="horizontal"
-      aria-label="Ubah tinggi timeline"
+      aria-label="Resize timeline"
       aria-valuenow={height}
       tabIndex={0}
       onPointerDown={(e) => {
@@ -413,7 +409,7 @@ function SideResizeHandle({ width, onChange }: { width: number; onChange: (w: nu
       ref={ref}
       role="separator"
       aria-orientation="vertical"
-      aria-label="Ubah lebar panel kanan"
+      aria-label="Resize right panel"
       aria-valuenow={width}
       aria-valuemin={PANEL_MIN}
       aria-valuemax={PANEL_MAX}

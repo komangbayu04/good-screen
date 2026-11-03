@@ -31,13 +31,13 @@ function probeVideo(src: string): Promise<Pick<Asset, "duration" | "width" | "he
     v.preload = "auto";
     v.playsInline = true;
     v.src = src;
-    v.onerror = () => reject(new Error("Video tidak bisa dibaca"));
+    v.onerror = () => reject(new Error("Couldn't read the video"));
     let done = false;
     let probing = false;
     const finish = (thumbnail?: string) => {
       if (done) return;
       done = true;
-      if (!Number.isFinite(v.duration) || v.duration <= 0) return reject(new Error("Durasi video tidak terbaca"));
+      if (!Number.isFinite(v.duration) || v.duration <= 0) return reject(new Error("Couldn't read the video's length"));
       resolve({ duration: v.duration, width: v.videoWidth, height: v.videoHeight, thumbnail });
     };
     const seekToThumb = () => {
@@ -80,7 +80,7 @@ function probeAudio(src: string): Promise<number> {
     a.preload = "metadata";
     a.src = src;
     a.onloadedmetadata = () => resolve(a.duration);
-    a.onerror = () => reject(new Error("Audio tidak bisa dibaca"));
+    a.onerror = () => reject(new Error("Couldn't read the audio"));
   });
 }
 
@@ -108,7 +108,7 @@ function probeImage(src: string): Promise<Pick<Asset, "width" | "height" | "thum
       c.getContext("2d")?.drawImage(img, 0, 0, c.width, c.height);
       resolve({ width: img.naturalWidth, height: img.naturalHeight, thumbnail: c.toDataURL("image/jpeg", 0.75) });
     };
-    img.onerror = () => reject(new Error("Gambar tidak bisa dibaca"));
+    img.onerror = () => reject(new Error("Couldn't read the image"));
     img.src = src;
   });
 }

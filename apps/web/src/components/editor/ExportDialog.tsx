@@ -12,10 +12,15 @@ type Phase = { kind: "idle" } | { kind: "rendering"; ratio: number } | { kind: "
 
 // Max 2K: beyond that the in-browser encoder gets slow and memory-hungry.
 const QUALITY = [
-  { id: "720", label: "720p", scale: 2 / 3 },
-  { id: "1080", label: "1080p", scale: 1 },
-  { id: "1440", label: "2K", scale: 4 / 3 },
+  { id: "720", label: "720p", scale: 2 / 3, hint: "Smaller file, faster export." },
+  { id: "1080", label: "1080p", scale: 1, hint: "Recommended for LinkedIn, X and Threads." },
+  { id: "1440", label: "2K", scale: 4 / 3, hint: "Sharpest; slower to export." },
 ] as const;
+
+const FORMAT_HINT: Record<ExportContainer, string> = {
+  mp4: "Plays everywhere, including every social platform.",
+  webm: "Smaller file; some platforms don't accept it.",
+};
 
 /** Native <dialog>: Escape, focus trap and inert background come from the platform. */
 export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -59,7 +64,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
       else
         setPhase({
           kind: "error",
-          message: `Ekspor gagal (${e instanceof Error ? e.message : "kesalahan tidak dikenal"}). Coba format WebM atau 720p, atau gunakan Chrome versi terbaru.`,
+          message: `Export failed (${e instanceof Error ? e.message : "unknown error"}). Try WebM or 720p, or use the latest Chrome.`,
         });
     } finally {
       abort.current = null;
@@ -81,11 +86,11 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
     >
       <div className="flex items-center justify-between px-5 pt-5">
         <h2 id="export-title" className="text-title font-semibold">
-          Ekspor video
+          Export video
         </h2>
         <button
           onClick={() => ref.current?.close()}
-          aria-label="Tutup"
+          aria-label="Close"
           className="flex size-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-panel-3 hover:text-fg"
         >
           <X className="size-4" />
@@ -94,9 +99,9 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
 
       <div className="space-y-4 px-5 pt-3 pb-5">
         <dl className="grid grid-cols-3 gap-2 rounded-[12px] bg-panel-2/70 p-3 text-center">
-          <Stat label="Durasi" value={formatTime(duration)} />
+          <Stat label="Duration" value={formatTime(duration)} />
           <Stat label="Frame" value={framePresetOf(project).label} />
-          <Stat label="Ukuran" value={`${outW}×${outH}`} />
+          <Stat label="Size" value={`${outW}×${outH}`} />
         </dl>
 
         <div className="space-y-2">
@@ -109,16 +114,18 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
             value={container}
             onChange={setContainer}
           />
+          <p className="text-meta text-muted">{FORMAT_HINT[container]}</p>
         </div>
         <div className="space-y-2">
-          <p className="text-xs text-fg/75">Kualitas</p>
+          <p className="text-xs text-fg/75">Quality</p>
           <Segmented options={QUALITY.map(({ id, label }) => ({ id, label }))} value={quality} onChange={setQuality} />
+          <p className="text-meta text-muted">{QUALITY.find((q) => q.id === quality)!.hint}</p>
         </div>
 
         {phase.kind === "rendering" && (
           <div className="space-y-1.5" role="status">
             <div className="flex justify-between text-meta text-muted">
-              <span>Merender di perangkatmu…</span>
+              <span>Rendering on your device…</span>
               <span className="font-mono tabular-nums">{Math.round(phase.ratio * 100)}%</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-panel-3">
@@ -128,7 +135,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
         )}
         {phase.kind === "done" && (
           <p role="status" className="text-meta text-fg/80">
-            {phase.name} siap ({(phase.blob.size / 1024 / 1024).toFixed(1)} MB). Unduhan dimulai otomatis.
+            {phase.name} is ready ({(phase.blob.size / 1024 / 1024).toFixed(1)} MB). The download starts automatically.
           </p>
         )}
         {phase.kind === "error" && (
@@ -136,19 +143,19 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
             {phase.message}
           </p>
         )}
-        {empty && <p className="text-meta text-muted">Timeline masih kosong. Tambahkan video dulu, lalu ekspor.</p>}
+        {empty && <p className="text-meta text-muted">The timeline is empty. Add a video, then export.</p>}
 
         <div className="flex gap-2 pt-1">
           {phase.kind === "rendering" ? (
             <button onClick={() => abort.current?.abort()} className="h-10 flex-1 rounded-full bg-panel-3 text-sm font-medium transition-colors hover:bg-line">
-              Batalkan
+              Cancel
             </button>
           ) : phase.kind === "done" ? (
             <button
               onClick={() => downloadBlob(phase.blob, phase.name)}
               className="bg-accent-grad flex h-10 flex-1 items-center justify-center gap-2 rounded-full text-sm font-semibold text-on-accent"
             >
-              <Download className="size-4" /> Unduh lagi
+              <Download className="size-4" /> Download again
             </button>
           ) : (
             <button
@@ -156,13 +163,13 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
               disabled={empty}
               className="bg-accent-grad flex h-10 flex-1 items-center justify-center gap-2 rounded-full text-sm font-semibold text-on-accent disabled:opacity-40"
             >
-              {phase.kind === "error" ? "Coba lagi" : "Mulai ekspor"}
+              {phase.kind === "error" ? "Try again" : `Export ${container.toUpperCase()}`}
             </button>
           )}
         </div>
         {phase.kind === "rendering" && (
           <p className="flex items-center justify-center gap-1 text-2xs text-muted">
-            <Loader2 className="size-3 animate-spin" /> Biarkan tab ini tetap terbuka sampai selesai.
+            <Loader2 className="size-3 animate-spin" /> Keep this tab open until it finishes.
           </p>
         )}
       </div>

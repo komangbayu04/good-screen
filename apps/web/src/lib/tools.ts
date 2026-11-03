@@ -8,7 +8,7 @@ export type ToolId = "background" | "zoom" | "camera";
 
 /**
  * `active`: the tool whose settings show in the right panel.
- * `move`: the Geser tool (V), on by default: click a layer on the canvas to select it,
+ * `move`: the Move tool (V), on by default: click a layer on the canvas to select it,
  * drag to move, corners to scale. Off, the canvas is just a player (click = play/pause).
  */
 export const useTools = create<{
@@ -78,7 +78,7 @@ export function addText({ typeOnCanvas = true }: { typeOnCanvas?: boolean } = {}
   // Start on the frame the player is showing, so the new box is on screen to type into.
   const start = Math.floor(playhead * project.fps + 1e-6) / project.fps;
   dispatch([
-    { type: "addCaption", id, start, duration: 3, text: typeOnCanvas ? "" : "Teks baru", style: "boxed" },
+    { type: "addCaption", id, start, duration: 3, text: typeOnCanvas ? "" : "New text", style: "boxed" },
     // Centre of the frame reads as "a title", not a subtitle.
     { type: "setClipProps", clipId: id, patch: { captionY: 45, captionSize: 0.8 } },
   ]);
@@ -94,7 +94,7 @@ export function addText({ typeOnCanvas = true }: { typeOnCanvas?: boolean } = {}
  */
 export async function addMediaLayer(file: File) {
   const asset = await fileToAsset(file);
-  if (!asset || (asset.kind !== "image" && asset.kind !== "video" && asset.kind !== "audio")) throw new Error("Pilih file gambar, video, atau audio");
+  if (!asset || (asset.kind !== "image" && asset.kind !== "video" && asset.kind !== "audio")) throw new Error("Choose an image, video or audio file");
   const st = useEditor.getState();
   st.addAsset(asset, { place: false });
   void saveMedia(asset.id, file);

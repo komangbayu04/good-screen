@@ -1,36 +1,25 @@
 "use client";
 
 import { useId, useState } from "react";
-import { ChevronDown, ChevronUp, RotateCcw, type LucideIcon } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useEditor, type Clip, type EditCommand, type KeyProp } from "@goodscreen/editor-core";
 import { KeyframeButton, useAnimated } from "./Keyframes";
 import { usePersistentState } from "@/lib/persist";
-
-/** Small tinted square that carries a section's icon (same treatment in cards and sections). */
-export function IconChip({ icon: Icon }: { icon: LucideIcon }) {
-  return (
-    <span className="flex size-6 shrink-0 items-center justify-center rounded-[6px] bg-panel-3/80 text-fg/75" aria-hidden="true">
-      <Icon className="size-3.5" />
-    </span>
-  );
-}
 
 /**
  * A collapsible group inside an inspector tab. Open/closed is remembered per
  * section, so a long list of tools stays the way the user left it. Toggling is
  * instant: it happens many times per session, so it gets no animation.
+ * The heading is plain text (no icon): the panel's title already says what this is.
+ * Resetting lives in one place, the Reset button at the bottom of the panel.
  */
 export function Section({
   title,
-  icon,
-  onReset,
   enabled,
   keyframe,
   children,
 }: {
   title: string;
-  icon?: LucideIcon;
-  onReset?: () => void;
   /** Diamond in the header that keys every listed property at once. */
   keyframe?: { clip: Clip; props: KeyProp[] };
   /** Header checkbox that switches the whole group on or off (e.g. Blend). */
@@ -47,7 +36,7 @@ export function Section({
             type="checkbox"
             checked={enabled.checked}
             onChange={(e) => enabled.onChange(e.target.checked)}
-            aria-label={`Aktifkan ${title}`}
+            aria-label={`Enable ${title}`}
             className="ml-1.5 size-4 shrink-0 cursor-pointer accent-[var(--color-secondary)]"
           />
         )}
@@ -57,24 +46,13 @@ export function Section({
             aria-expanded={open}
             aria-controls={bodyId}
             onClick={() => setOpen(!open)}
-            className="flex h-9 w-full items-center gap-2.5 rounded-[8px] px-1.5 text-left transition-colors hover:bg-ink/[0.03]"
+            className="flex h-9 w-full items-center gap-2 rounded-[8px] px-1.5 text-left transition-colors hover:bg-ink/[0.03]"
           >
-            {icon && <IconChip icon={icon} />}
-            <span className="min-w-0 flex-1 truncate text-ui font-medium">{title}</span>
+            <span className="min-w-0 flex-1 truncate text-ui font-semibold">{title}</span>
             <ChevronDown className={`size-3.5 shrink-0 text-muted ${open ? "" : "-rotate-90"}`} />
           </button>
         </h4>
         {keyframe && <KeyframeButton clip={keyframe.clip} props={keyframe.props} label={title} />}
-        {onReset && (
-          <button
-            onClick={onReset}
-            aria-label={`Reset ${title}`}
-            title={`Reset ${title}`}
-            className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-panel-3 hover:text-fg"
-          >
-            <RotateCcw className="size-3.5" />
-          </button>
-        )}
       </div>
       <div
         id={bodyId}
@@ -88,7 +66,22 @@ export function Section({
   );
 }
 
-export const FieldLabel = ({ children }: { children: React.ReactNode }) => <p className="text-xs text-fg/75">{children}</p>;
+/** The panel's one Reset: a bar under the scrolling content, for everything the panel shows. */
+export function ResetBar({ onReset, disabled }: { onReset: () => void; disabled?: boolean }) {
+  return (
+    <div className="flex shrink-0 justify-end border-t border-ink/[0.06] px-3 py-2">
+      <button
+        onClick={onReset}
+        disabled={disabled}
+        className="h-8 rounded-[8px] bg-panel-3 px-4 text-xs font-medium text-fg/90 transition-colors hover:bg-line disabled:opacity-40"
+      >
+        Reset
+      </button>
+    </div>
+  );
+}
+
+export const FieldLabel =({ children }: { children: React.ReactNode }) => <p className="text-xs text-fg/75">{children}</p>;
 
 /**
  * Number box with up/down steppers. Typing commits on blur/Enter; steppers
@@ -144,10 +137,10 @@ export function NumberStepper({
         className="h-full w-full min-w-0 bg-transparent font-mono text-base tabular-nums outline-none lg:text-xs"
       />
       <div className="flex h-full flex-col border-l border-ink/[0.06]">
-        <button data-no-press aria-label={`Naikkan ${label}`} onClick={() => commit(value + step)} className="flex flex-1 items-center px-1 text-muted hover:text-fg">
+        <button data-no-press aria-label={`Increase ${label}`} onClick={() => commit(value + step)} className="flex flex-1 items-center px-1 text-muted hover:text-fg">
           <ChevronUp className="size-3" />
         </button>
-        <button data-no-press aria-label={`Turunkan ${label}`} onClick={() => commit(value - step)} className="flex flex-1 items-center px-1 text-muted hover:text-fg">
+        <button data-no-press aria-label={`Decrease ${label}`} onClick={() => commit(value - step)} className="flex flex-1 items-center px-1 text-muted hover:text-fg">
           <ChevronDown className="size-3" />
         </button>
       </div>
@@ -271,7 +264,7 @@ export function Chips<T extends string>({ options, value, onChange }: { options:
           key={o.id}
           onClick={() => o.id !== value && onChange(o.id)}
           className={`h-7 rounded-full px-3 text-xs transition-colors ${
-            o.id === value ? "border border-secondary bg-secondary/10 text-fg" : "border border-line text-muted hover:text-fg"
+            o.id === value ? "border border-transparent is-selected" : "border border-line text-muted hover:text-fg"
           }`}
         >
           {o.label}
@@ -310,7 +303,7 @@ export function Segmented<T extends string>({ options, value, onChange }: { opti
           aria-selected={o.id === value}
           tabIndex={o.id === value ? 0 : -1}
           onClick={() => onChange(o.id)}
-          className={`h-7 rounded-[7px] text-xs transition-colors ${o.id === value ? "bg-panel-3 font-medium text-fg" : "text-muted hover:text-fg"}`}
+          className={`h-7 rounded-[7px] text-xs transition-colors ${o.id === value ? "is-selected font-medium" : "text-muted hover:text-fg"}`}
         >
           {o.label}
         </button>
@@ -328,7 +321,8 @@ export function Toggle({ on, onChange, label }: { on: boolean; onChange: (on: bo
       onClick={() => onChange(!on)}
       className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${on ? "bg-secondary" : "bg-panel-3"}`}
     >
-      <span className={`absolute top-0.5 left-0 size-4 rounded-full bg-white transition-transform ${on ? "translate-x-[18px]" : "translate-x-0.5"}`} />
+      {/* On: white track, dark thumb (the selection colour is white, so a white thumb would vanish). */}
+      <span className={`absolute top-0.5 left-0 size-4 rounded-full transition-transform ${on ? "translate-x-[18px] bg-on-secondary" : "translate-x-0.5 bg-white"}`} />
     </button>
   );
 }

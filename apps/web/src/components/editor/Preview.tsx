@@ -15,7 +15,7 @@ import { FpsPicker, FramePicker } from "./Inspector";
  * `mobile` switches to the phone layout: full-bleed black stage with floating corner
  * controls (frame, menu, undo/redo, play) instead of the docked transport bar.
  */
-export function Preview({ onRecord, mobile }: { onRecord?: () => void; mobile?: { onOpenMenu: () => void } }) {
+export function Preview({ mobile }: { mobile?: { onOpenMenu: () => void } }) {
   const ref = useRef<PlayerRef>(null);
   const project = useEditor((s) => s.project);
   const setPlayhead = useEditor((s) => s.setPlayhead);
@@ -70,16 +70,8 @@ export function Preview({ onRecord, mobile }: { onRecord?: () => void; mobile?: 
         {!mobile && !empty && moveOn && <CanvasOverlay />}
         {empty && (
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
-            <p className="text-sm font-medium">Belum ada rekaman</p>
-            <p className="max-w-[240px] text-xs text-muted">Rekam layarmu, atau seret file video ke sini.</p>
-            {onRecord && (
-              <button
-                onClick={onRecord}
-                className="bg-accent-grad pointer-events-auto mt-1 flex h-9 items-center gap-1.5 rounded-full px-4 text-sm font-semibold text-on-accent"
-              >
-                <span className="size-2 rounded-full bg-white" aria-hidden="true" /> Mulai rekam
-              </button>
-            )}
+            <p className="text-sm font-medium">Nothing recorded yet</p>
+            <p className="max-w-[240px] text-xs text-muted">Record your screen, or drop a video file here.</p>
           </div>
         )}
       </div>
@@ -122,7 +114,7 @@ function MobileOverlays({ onOpenMenu }: { onOpenMenu: () => void }) {
       <div className="absolute top-3 left-3 z-10">
         <FrameMenu placement="down" compact />
       </div>
-      <button onClick={onOpenMenu} aria-label="Menu proyek" className={`${square} absolute top-3 right-3 z-10`}>
+      <button onClick={onOpenMenu} aria-label="Project menu" className={`${square} absolute top-3 right-3 z-10`}>
         <Menu className="size-[18px]" />
       </button>
       <div className="glass absolute bottom-3 left-3 z-10 flex flex-col overflow-hidden rounded-[12px]">
@@ -168,7 +160,7 @@ export function PlayerControls() {
       </span>
 
       <div className="flex items-center gap-1">
-        <BarButton label="Ke potongan sebelumnya" onClick={() => seek([...edges].reverse().find((e) => e < playhead - 0.05) ?? 0)}>
+        <BarButton label="Previous cut" onClick={() => seek([...edges].reverse().find((e) => e < playhead - 0.05) ?? 0)}>
           <SkipBack className="size-4" />
         </BarButton>
         <button
@@ -178,14 +170,14 @@ export function PlayerControls() {
         >
           {playing ? <Pause className="size-4 fill-current" /> : <Play className="ml-0.5 size-4 fill-current" />}
         </button>
-        <BarButton label="Ke potongan berikutnya" onClick={() => seek(edges.find((e) => e > playhead + 0.05) ?? total)}>
+        <BarButton label="Next cut" onClick={() => seek(edges.find((e) => e > playhead + 0.05) ?? total)}>
           <SkipForward className="size-4" />
         </BarButton>
       </div>
 
       <div className="flex items-center justify-end gap-1">
         <BarButton
-          label={videoMuted ? "Nyalakan suara" : "Matikan suara"}
+          label={videoMuted ? "Unmute" : "Mute"}
           onClick={() => {
             const t = useEditor.getState().project.tracks.find((tr) => tr.kind === "video");
             if (t) useEditor.getState().toggleTrack(t.id, "muted");
@@ -229,7 +221,7 @@ function FrameMenu({ placement = "up", compact }: { placement?: "up" | "down"; c
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        title="Ubah frame & frame rate"
+        title="Change frame & frame rate"
         className={
           compact
             ? "glass flex h-10 items-center gap-1 rounded-[12px] px-3 font-mono text-meta whitespace-nowrap text-white/90"

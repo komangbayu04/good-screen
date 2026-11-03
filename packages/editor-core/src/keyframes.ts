@@ -8,14 +8,14 @@ import type { Clip, KeyEase, KeyProp, Keyframe } from "./types";
  */
 
 export const KEY_PROPS: { id: KeyProp; label: string; group: "transform" | "adjust" | "audio" }[] = [
-  { id: "x", label: "Posisi X", group: "transform" },
-  { id: "y", label: "Posisi Y", group: "transform" },
-  { id: "scale", label: "Skala", group: "transform" },
-  { id: "rotate", label: "Rotasi", group: "transform" },
-  { id: "opacity", label: "Opasitas", group: "transform" },
-  { id: "brightness", label: "Kecerahan", group: "adjust" },
-  { id: "contrast", label: "Kontras", group: "adjust" },
-  { id: "saturation", label: "Saturasi", group: "adjust" },
+  { id: "x", label: "Position X", group: "transform" },
+  { id: "y", label: "Position Y", group: "transform" },
+  { id: "scale", label: "Scale", group: "transform" },
+  { id: "rotate", label: "Rotation", group: "transform" },
+  { id: "opacity", label: "Opacity", group: "transform" },
+  { id: "brightness", label: "Brightness", group: "adjust" },
+  { id: "contrast", label: "Contrast", group: "adjust" },
+  { id: "saturation", label: "Saturation", group: "adjust" },
   { id: "hue", label: "Hue", group: "adjust" },
   { id: "blur", label: "Blur", group: "adjust" },
   { id: "volume", label: "Volume", group: "audio" },

@@ -17,8 +17,8 @@ export function PanelHeader({ title, meta, children }: { title: string; meta?: s
         {collapse && (
           <button
             onClick={collapse}
-            aria-label="Tutup panel (Ctrl+B)"
-            title="Tutup panel (Ctrl+B)"
+            aria-label="Close panel"
+            title="Close panel"
             className="flex size-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-panel-3 hover:text-fg"
           >
             <PanelLeftClose className="size-4" />

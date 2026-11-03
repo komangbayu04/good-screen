@@ -103,8 +103,8 @@ function releaseStreams() {
 }
 
 function label(source: RecordSource, startedAt: number) {
-  const time = new Date(startedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }).replace(":", ".");
-  return source === "screen" ? `Rekaman layar ${time}` : `Rekaman kamera ${time}`;
+  const time = new Date(startedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  return source === "screen" ? `Screen recording ${time}` : `Camera recording ${time}`;
 }
 
 async function deleteTake(id: string) {
@@ -122,7 +122,7 @@ async function finish(id: string, source: RecordSource, startedAt: number, chunk
     const { errors } = await importFiles([screenFile]);
     if (errors.length) throw new Error(errors[0]);
   } else {
-    const cameraFile = chunks.camera.length ? new File(chunks.camera, `${name} (kamera).${ext}`, { type }) : null;
+    const cameraFile = chunks.camera.length ? new File(chunks.camera, `${name} (camera).${ext}`, { type }) : null;
     await importScreenTake(screenFile, cameraFile, cursor);
   }
   await deleteTake(id);
@@ -230,8 +230,8 @@ export const useRecorder = create<RecorderState>((set, get) => ({
         screenStream: null,
         cameraStream: null,
         error: denied
-          ? "Izin rekam ditolak. Izinkan akses layar, kamera, atau mikrofon di pengaturan browser, lalu coba lagi."
-          : `Gagal merekam (${e instanceof Error ? e.message : "perangkat tidak tersedia"}). Coba matikan kamera atau audio sistem, lalu ulangi.`,
+          ? "Recording permission was denied. Allow screen, camera or microphone access in your browser settings, then try again."
+          : `Couldn't start recording (${e instanceof Error ? e.message : "device unavailable"}). Try turning off the camera or system audio, then try again.`,
       });
     }
   },
@@ -279,7 +279,7 @@ export const useRecorder = create<RecorderState>((set, get) => ({
           await finish(current.id, current.opts.source, current.startedAt || Date.now(), current.chunks, current.recorders.screen?.mimeType ?? "", cursor);
           set({ status: "idle", source: null, error: null });
         } catch (e) {
-          set({ status: "idle", source: null, error: `Rekaman tersimpan sebagian dan bisa dipulihkan (${e instanceof Error ? e.message : "gagal diimpor"}).` });
+          set({ status: "idle", source: null, error: `The recording was partly saved and can be recovered (${e instanceof Error ? e.message : "import failed"}).` });
           void get().scanRecoverable();
         }
       };
@@ -312,7 +312,7 @@ export const useRecorder = create<RecorderState>((set, get) => ({
       const cursor = all.find(([k]) => k === `${id}:cursor`)?.[1] as CursorSample[] | undefined;
       await finish(id, meta?.source ?? "screen", meta?.startedAt ?? Date.now(), { screen: pick("screen"), camera: pick("camera") }, meta?.mime ?? "video/webm", cursor);
     } catch (e) {
-      set({ error: `Rekaman tidak bisa dipulihkan (${e instanceof Error ? e.message : "data rusak"}).` });
+      set({ error: `The recording couldn't be recovered (${e instanceof Error ? e.message : "the data is damaged"}).` });
     }
     await get().scanRecoverable();
   },

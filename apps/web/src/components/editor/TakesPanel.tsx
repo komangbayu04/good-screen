@@ -7,7 +7,8 @@ import { formatDuration } from "@/lib/media";
 import { setWorkspace } from "@/lib/workspace";
 import { PanelHeader } from "./PanelHeader";
 
-const isTake = (a: Asset) => a.kind === "video" && /^Rekaman (layar|kamera) /.test(a.name) && !/\(kamera\)/.test(a.name);
+// Takes recorded before the English UI have Indonesian names ("Rekaman layar …").
+const isTake = (a: Asset) => a.kind === "video" && /^((Screen|Camera) recording|Rekaman (layar|kamera)) /.test(a.name) && !/\((camera|kamera)\)/.test(a.name);
 
 /** Everything recorded in this project; opening one jumps to it in Edit. */
 export function TakesPanel() {
@@ -28,17 +29,17 @@ export function TakesPanel() {
     setWorkspace("edit");
   };
 
-  if (!takes.length) return <EmptyPanel title="Rekaman" icon={Video} text="Hasil rekaman layar dan kamera di proyek ini muncul di sini." />;
+  if (!takes.length) return <EmptyPanel title="Recordings" icon={Video} text="Screen and camera recordings in this project show up here." />;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PanelHeader title="Rekaman" meta={`${takes.length}`} />
+      <PanelHeader title="Recordings" meta={`${takes.length}`} />
       <ul className="scroll-fade scrollbar-thin min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain px-2 pb-2">
         {takes.map((a) => (
           <li key={a.id}>
             <button
               onClick={() => open(a)}
-              title="Buka di Edit"
+              title="Open in the editor"
               className="flex w-full items-center gap-3 rounded-[14px] p-2 text-left transition-colors hover:bg-panel-2"
             >
               <span className="flex h-11 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-panel-3 outline-1 -outline-offset-1 outline-white/10">

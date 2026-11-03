@@ -51,7 +51,7 @@ export function KeyframeButton({ clip, props, label }: { clip: Clip; props: KeyP
   return (
     <span className="flex items-center">
       {animated && (
-        <NavButton label={`Keyframe ${label} sebelumnya`} disabled={prev === undefined} onClick={() => prev !== undefined && seek(timelineTime(clip, prev))}>
+        <NavButton label={`Previous ${label} keyframe`} disabled={prev === undefined} onClick={() => prev !== undefined && seek(timelineTime(clip, prev))}>
           <ChevronLeft className="size-3" />
         </NavButton>
       )}
@@ -60,8 +60,8 @@ export function KeyframeButton({ clip, props, label }: { clip: Clip; props: KeyP
         onClick={toggle}
         disabled={!inRange}
         aria-pressed={onFrame}
-        aria-label={onFrame ? `Hapus keyframe ${label}` : `Tambah keyframe ${label}`}
-        title={!inRange ? "Taruh playhead di klip ini untuk menambah keyframe" : onFrame ? "Hapus keyframe di frame ini" : "Tambah keyframe di playhead"}
+        aria-label={onFrame ? `Remove ${label} keyframe` : `Add ${label} keyframe`}
+        title={!inRange ? "Put the playhead on this clip to add a keyframe" : onFrame ? "Remove the keyframe at this frame" : "Add a keyframe at the playhead"}
         className={`flex size-6 items-center justify-center rounded-[6px] transition-colors hover:bg-panel-3 disabled:opacity-30 ${
           onFrame ? "text-secondary" : animated ? "text-fg/85" : "text-muted/70 hover:text-fg"
         }`}
@@ -69,7 +69,7 @@ export function KeyframeButton({ clip, props, label }: { clip: Clip; props: KeyP
         <Diamond className={`size-3.5 ${onFrame ? "fill-current" : ""}`} strokeWidth={2} />
       </button>
       {animated && (
-        <NavButton label={`Keyframe ${label} berikutnya`} disabled={next === undefined} onClick={() => next !== undefined && seek(timelineTime(clip, next))}>
+        <NavButton label={`Next ${label} keyframe`} disabled={next === undefined} onClick={() => next !== undefined && seek(timelineTime(clip, next))}>
           <ChevronRight className="size-3" />
         </NavButton>
       )}
@@ -97,7 +97,7 @@ const CURVES: { id: KeyEase; label: string; path: string }[] = [
   { id: "ease-in", label: "Ease in", path: "M2 14 C12 14 16 8 18 2" },
   { id: "ease-out", label: "Ease out", path: "M2 14 C4 8 8 2 18 2" },
   { id: "ease-in-out", label: "Ease in-out", path: "M2 14 C10 14 10 2 18 2" },
-  { id: "hold", label: "Tahan", path: "M2 14 L18 14 L18 2" },
+  { id: "hold", label: "Hold", path: "M2 14 L18 14 L18 2" },
 ];
 
 /**
@@ -126,16 +126,16 @@ export function KeyframeBar({ clip }: { clip: Clip }) {
         <span className="flex-1 text-ui font-medium">
           {times.length} keyframe
         </span>
-        <NavButton label="Keyframe sebelumnya" disabled={prev === undefined} onClick={() => prev !== undefined && seek(timelineTime(clip, prev))}>
+        <NavButton label="Previous keyframe" disabled={prev === undefined} onClick={() => prev !== undefined && seek(timelineTime(clip, prev))}>
           <ChevronLeft className="size-3.5" />
         </NavButton>
-        <NavButton label="Keyframe berikutnya" disabled={next === undefined} onClick={() => next !== undefined && seek(timelineTime(clip, next))}>
+        <NavButton label="Next keyframe" disabled={next === undefined} onClick={() => next !== undefined && seek(timelineTime(clip, next))}>
           <ChevronRight className="size-3.5" />
         </NavButton>
         <button
           onClick={() => dispatch([{ type: "clearKeyframes", clipId: clip.id }])}
-          aria-label="Hapus semua keyframe"
-          title="Hapus semua keyframe"
+          aria-label="Remove all keyframes"
+          title="Remove all keyframes"
           className="flex size-6 items-center justify-center rounded-[6px] text-muted transition-colors hover:bg-panel-3 hover:text-red-400"
         >
           <Trash2 className="size-3.5" />
@@ -143,8 +143,8 @@ export function KeyframeBar({ clip }: { clip: Clip }) {
       </div>
       {here !== undefined ? (
         <div className="space-y-1.5">
-          <p className="text-meta text-muted">Kurva ke keyframe berikutnya</p>
-          <div className="grid grid-cols-5 gap-1" role="radiogroup" aria-label="Kurva keyframe">
+          <p className="text-meta text-muted">Curve to the next keyframe</p>
+          <div className="grid grid-cols-5 gap-1" role="radiogroup" aria-label="Keyframe curve">
             {CURVES.map((c) => (
               <button
                 key={c.id}
@@ -153,7 +153,7 @@ export function KeyframeBar({ clip }: { clip: Clip }) {
                 title={c.label}
                 onClick={() => dispatch([{ type: "setKeyframeEase", clipId: clip.id, t: here, ease: c.id }])}
                 className={`flex h-10 flex-col items-center justify-center gap-0.5 rounded-[8px] transition-colors ${
-                  ease === c.id ? "bg-secondary/12 text-fg ring-1 ring-secondary" : "bg-panel-3/50 text-muted hover:text-fg"
+                  ease === c.id ? "is-selected" : "bg-panel-3/50 text-muted hover:text-fg"
                 }`}
               >
                 <svg viewBox="0 0 20 16" className="h-3.5 w-5" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" aria-hidden="true">
@@ -184,7 +184,7 @@ export function ToolbarKeyframe() {
 
 function KeyPlaceholder() {
   return (
-    <span title="Pilih klip untuk menambah keyframe" className="flex size-8 items-center justify-center text-muted/40" aria-hidden="true">
+    <span title="Select a clip to add keyframes" className="flex size-8 items-center justify-center text-muted/40" aria-hidden="true">
       <Diamond className="size-3.5" />
     </span>
   );
@@ -212,7 +212,7 @@ export function ClipKeyMarkers({ clip, pps, selected }: { clip: Clip; pps: numbe
             key={t}
             data-no-press
             tabIndex={selected ? 0 : -1}
-            aria-label={`Keyframe di ${timelineTime(clip, t).toFixed(2)} detik`}
+            aria-label={`Keyframe at ${timelineTime(clip, t).toFixed(2)}s`}
             onPointerDown={(e) => {
               if (!selected || e.button !== 0) return;
               e.stopPropagation();

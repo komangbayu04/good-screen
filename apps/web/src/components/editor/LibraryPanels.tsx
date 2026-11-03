@@ -7,7 +7,7 @@ import { ProjectBrowser } from "./ProjectSwitcher";
 export function ProjectsPanel({ onPicked }: { onPicked?: () => void }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PanelHeader title="Proyek" />
+      <PanelHeader title="Projects" />
       <ProjectBrowser onDone={onPicked} />
     </div>
   );

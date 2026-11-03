@@ -164,7 +164,7 @@ export const useEditor = create<EditorState>()(
       newProject: () => {
         const current = get().project;
         const n = get().otherProjects.length + 2;
-        switchTo(createProject(`Rekaman ${n}`), current);
+        switchTo(createProject(`Recording ${n}`), current);
       },
       openProject: (id) => {
         const target = get().otherProjects.find((p) => p.id === id);
@@ -172,7 +172,7 @@ export const useEditor = create<EditorState>()(
       },
       renameProject: (name) =>
         set((s) => {
-          s.project.name = name.trim() || "Rekaman tanpa judul";
+          s.project.name = name.trim() || "Untitled recording";
         }),
     };
   }),

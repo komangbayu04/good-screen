@@ -10,8 +10,8 @@ import { ToggleRow, onTabListKeyDown } from "./controls";
 import { canFloat } from "./FloatingControls";
 
 const SOURCES: { id: RecordSource; label: string; icon: typeof Monitor; hint: string }[] = [
-  { id: "screen", label: "Layar", icon: Monitor, hint: "Seluruh layar, satu jendela, atau tab browser" },
-  { id: "camera", label: "Kamera", icon: Camera, hint: "Kamera depan, cocok untuk talking-head" },
+  { id: "screen", label: "Screen", icon: Monitor, hint: "A whole screen, one window or a browser tab" },
+  { id: "camera", label: "Camera", icon: Camera, hint: "Front camera, for talking-head videos" },
 ];
 
 /** Ticks while recording so timers stay live without re-rendering the whole editor. */
@@ -52,12 +52,12 @@ export function RecordPanel({ onClose }: { onClose?: () => void }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PanelHeader title="Rekam">
+      <PanelHeader title="Record">
         {onClose && (
           <button
             onClick={onClose}
-            aria-label="Tutup perekam"
-            title="Kembali ke editor"
+            aria-label="Close recorder"
+            title="Back to the editor"
             className="flex size-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-panel-3 hover:text-fg"
           >
             <X className="size-4" />
@@ -66,25 +66,25 @@ export function RecordPanel({ onClose }: { onClose?: () => void }) {
       </PanelHeader>
       <div className="scroll-fade scrollbar-thin min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-3">
         {rec.recoverable.map((t) => (
-          <div key={t.id} role="alert" className="flex items-center gap-3 rounded-[12px] bg-secondary/10 px-3 py-2.5 ring-1 ring-secondary/30">
+          <div key={t.id} role="alert" className="flex items-center gap-3 rounded-[12px] bg-panel-3/60 px-3 py-2.5 ring-1 ring-ink/10">
             <History className="size-4 shrink-0 text-secondary" />
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium">Rekaman belum tersimpan</p>
+              <p className="text-xs font-medium">Unsaved recording</p>
               <p className="text-meta text-muted">
-                {new Date(t.startedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} · ±{t.seconds} detik
-                {t.hasCamera ? " · dengan kamera" : ""}
+                {new Date(t.startedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })} · ±{t.seconds}s
+                {t.hasCamera ? " · with camera" : ""}
               </p>
             </div>
             <button onClick={() => rec.recover(t.id)} className="h-7 rounded-full bg-secondary px-3 text-xs font-medium text-on-secondary">
-              Pulihkan
+              Recover
             </button>
-            <button onClick={() => rec.discard(t.id)} aria-label="Buang rekaman" className="flex size-7 items-center justify-center rounded-full text-muted hover:text-fg">
+            <button onClick={() => rec.discard(t.id)} aria-label="Discard recording" className="flex size-7 items-center justify-center rounded-full text-muted hover:text-fg">
               <Trash2 className="size-3.5" />
             </button>
           </div>
         ))}
 
-        <div role="tablist" aria-label="Sumber rekaman" onKeyDown={onTabListKeyDown} className="grid grid-cols-2 gap-1 rounded-[10px] bg-panel-3/50 p-1">
+        <div role="tablist" aria-label="Recording source" onKeyDown={onTabListKeyDown} className="grid grid-cols-2 gap-1 rounded-[10px] bg-panel-3/50 p-1">
           {SOURCES.map((s) => {
             const on = s.id === shown;
             return (
@@ -96,7 +96,7 @@ export function RecordPanel({ onClose }: { onClose?: () => void }) {
                 disabled={live}
                 onClick={() => setSource(s.id)}
                 className={`flex h-8 items-center justify-center gap-1.5 rounded-[7px] text-xs transition-colors disabled:cursor-not-allowed ${
-                  on ? "bg-panel-3 font-medium text-fg" : "text-muted hover:text-fg"
+                  on ? "is-selected font-medium" : "text-muted hover:text-fg"
                 }`}
               >
                 <s.icon className="size-3.5" />
@@ -109,15 +109,15 @@ export function RecordPanel({ onClose }: { onClose?: () => void }) {
         <Stage source={shown} supported={supported} hint={meta.hint} />
 
         <div className="space-y-2.5 rounded-[12px] bg-panel-2/60 px-3 py-3" inert={live}>
-          {shown === "screen" && <ToggleRow label="Rekam webcam juga" on={camera} onChange={setCamera} />}
-          <ToggleRow label="Mikrofon (peredam bising)" on={mic} onChange={setMic} />
-          {shown === "screen" && <ToggleRow label="Audio sistem / tab" on={systemAudio} onChange={setSystemAudio} />}
-          <ToggleRow label="Hitung mundur 3 detik" on={countdown} onChange={setCountdown} />
+          {shown === "screen" && <ToggleRow label="Also record webcam" on={camera} onChange={setCamera} />}
+          <ToggleRow label="Microphone (noise suppression)" on={mic} onChange={setMic} />
+          {shown === "screen" && <ToggleRow label="System / tab audio" on={systemAudio} onChange={setSystemAudio} />}
+          <ToggleRow label="3-second countdown" on={countdown} onChange={setCountdown} />
         </div>
 
         {rec.status === "countdown" ? (
           <button onClick={rec.cancel} className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-panel-3 text-sm font-medium">
-            <X className="size-4" /> Batalkan ({rec.countdown})
+            <X className="size-4" /> Cancel ({rec.countdown})
           </button>
         ) : rec.status === "recording" || rec.status === "paused" ? (
           <div className="space-y-2">
@@ -127,10 +127,10 @@ export function RecordPanel({ onClose }: { onClose?: () => void }) {
                 className="flex h-10 flex-1 items-center justify-center gap-2 rounded-full bg-panel-3 text-sm font-medium transition-colors hover:bg-line"
               >
                 {rec.status === "paused" ? <Play className="size-4 fill-current" /> : <Pause className="size-4 fill-current" />}
-                {rec.status === "paused" ? "Lanjut" : "Jeda"}
+                {rec.status === "paused" ? "Resume" : "Pause"}
               </button>
               <button onClick={rec.stop} className="flex h-10 flex-[1.4] items-center justify-center gap-2 rounded-full bg-red-600 text-sm font-semibold text-white hover:bg-red-700">
-                <Square className="size-3.5 fill-current" /> Stop dan simpan
+                <Square className="size-3.5 fill-current" /> Stop and save
               </button>
             </div>
             {canFloat() && !floating && (
@@ -138,7 +138,7 @@ export function RecordPanel({ onClose }: { onClose?: () => void }) {
                 onClick={() => setFloating(true)}
                 className="flex h-9 w-full items-center justify-center gap-2 rounded-full text-xs text-fg/80 ring-1 ring-line transition-colors hover:bg-panel-3"
               >
-                <PictureInPicture2 className="size-3.5" /> Tampilkan kontrol melayang
+                <PictureInPicture2 className="size-3.5" /> Show floating controls
               </button>
             )}
           </div>
@@ -146,10 +146,10 @@ export function RecordPanel({ onClose }: { onClose?: () => void }) {
           <button
             onClick={() => rec.start({ source, camera: source === "screen" && camera, mic, systemAudio: source === "screen" && systemAudio, countdown: countdown ? 3 : 0 })}
             disabled={!supported || rec.status === "saving"}
-            className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-fg text-sm font-semibold text-bg transition-colors hover:bg-white disabled:opacity-40"
+            className="bg-accent-grad flex h-10 w-full items-center justify-center gap-2 rounded-full text-sm font-semibold text-on-accent disabled:opacity-40"
           >
-            {rec.status === "saving" ? <Loader2 className="size-4 animate-spin" /> : <span className="size-2.5 rounded-full bg-red-600" aria-hidden="true" />}
-            {rec.status === "saving" ? "Menyimpan rekaman…" : `Mulai rekam ${meta.label.toLowerCase()}`}
+            {rec.status === "saving" ? <Loader2 className="size-4 animate-spin" /> : <span className="size-2.5 rounded-full bg-white" aria-hidden="true" />}
+            {rec.status === "saving" ? "Saving recording…" : `Record ${meta.label.toLowerCase()}`}
           </button>
         )}
 
@@ -159,7 +159,7 @@ export function RecordPanel({ onClose }: { onClose?: () => void }) {
           </p>
         )}
         <p className="px-1 text-meta leading-relaxed text-muted">
-          Rekaman disimpan tiap detik di perangkatmu, jadi tetap bisa dipulihkan kalau tab tertutup. Hasilnya langsung masuk ke timeline dengan latar dan bingkai.
+          Recordings are saved to your device every second, so they can be recovered if the tab closes. Each take lands on the timeline with a background and frame.
         </p>
       </div>
     </div>
@@ -195,19 +195,19 @@ function Stage({ source, supported, hint }: { source: RecordSource; supported: b
           ) : (
             <span className="glass absolute top-2 left-2 flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-meta text-white tabular-nums">
               <span className={`size-2 rounded-full ${rec.status === "paused" ? "bg-amber-400" : "bg-red-500"}`} aria-hidden="true" />
-              {rec.status === "paused" ? "JEDA" : "REC"} {formatTime(seconds)}
+              {rec.status === "paused" ? "PAUSED" : "REC"} {formatTime(seconds)}
             </span>
           )}
         </>
       ) : rec.status === "saving" ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
           <Loader2 className="size-5 animate-spin text-secondary" />
-          <p className="text-meta text-muted">Menyimpan rekaman…</p>
+          <p className="text-meta text-muted">Saving recording…</p>
         </div>
       ) : (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-4 text-center">
           {source === "screen" ? <ScreenGlyph /> : <CameraGlyph />}
-          <p className="text-meta text-muted">{supported ? hint : "Tidak didukung di browser ini. Coba sumber lain."}</p>
+          <p className="text-meta text-muted">{supported ? hint : "Not supported in this browser. Try another source."}</p>
         </div>
       )}
     </div>

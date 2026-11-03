@@ -8,9 +8,9 @@ export type TrayTarget = "media" | "text" | "record" | "edit";
 export function MobileTray({ onOpen }: { onOpen: (target: TrayTarget) => void }) {
   return (
     <div className="scrollbar-thin flex items-end justify-center gap-2 overflow-x-auto px-3 pt-1 pb-3">
-      <Tile icon={CircleDot} label="Rekam" onClick={() => onOpen("record")} />
+      <Tile icon={CircleDot} label="Record" onClick={() => onOpen("record")} />
       <Tile icon={Film} label="Media" onClick={() => onOpen("media")} />
-      <Tile icon={Type} label="Teks" onClick={() => onOpen("text")} />
+      <Tile icon={Type} label="Text" onClick={() => onOpen("text")} />
       <Tile icon={SlidersHorizontal} label="Edit" onClick={() => onOpen("edit")} />
     </div>
   );

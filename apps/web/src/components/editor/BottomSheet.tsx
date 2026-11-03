@@ -112,7 +112,7 @@ export function BottomSheet({ open, onClose, children }: { open: boolean; onClos
             onClick={onClose}
             onPointerDown={(e) => e.stopPropagation()}
             className="absolute top-1 right-2 flex size-8 items-center justify-center rounded-full text-muted"
-            aria-label="Tutup"
+            aria-label="Close"
           >
             <X className="size-4" />
           </button>

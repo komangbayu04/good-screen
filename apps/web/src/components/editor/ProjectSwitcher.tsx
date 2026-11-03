@@ -45,8 +45,8 @@ export function ProjectSwitcher() {
       {open && (
         <div
           role="dialog"
-          aria-label="Proyek"
-          className="absolute top-full left-1/2 z-50 mt-2 w-[min(420px,calc(100vw-24px))] -translate-x-1/2 origin-top frost overflow-hidden rounded-[18px] border border-ink/[0.14] bg-panel shadow-2xl transition-[opacity,scale] duration-150 ease-out starting:scale-[0.97] starting:opacity-0"
+          aria-label="Projects"
+          className="absolute top-full left-0 z-50 mt-2 w-[min(420px,calc(100vw-24px))] origin-top-left frost overflow-hidden rounded-[18px] border border-ink/[0.14] bg-panel shadow-2xl transition-[opacity,scale] duration-150 ease-out starting:scale-[0.97] starting:opacity-0"
         >
           <ProjectBrowser onDone={() => useProjectSwitcher.setState({ open: false })} />
         </div>
@@ -58,12 +58,12 @@ export function ProjectSwitcher() {
 const ago = (t?: number) => {
   if (!t) return null;
   const m = Math.round((Date.now() - t) / 60000);
-  if (m < 1) return "baru saja";
-  if (m < 60) return `${m} mnt lalu`;
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min ago`;
   const h = Math.round(m / 60);
-  if (h < 24) return `${h} jam lalu`;
+  if (h < 24) return `${h} h ago`;
   const d = Math.round(h / 24);
-  return d === 1 ? "kemarin" : `${d} hari lalu`;
+  return d === 1 ? "yesterday" : `${d} days ago`;
 };
 
 /**
@@ -99,15 +99,15 @@ export function ProjectBrowser({ onDone }: { onDone?: () => void }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             autoFocus
-            aria-label="Cari proyek"
-            placeholder="Cari proyek"
+            aria-label="Search projects"
+            placeholder="Search projects"
             className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted lg:text-ui"
           />
         </label>
       </div>
 
       <ul className="scroll-fade scrollbar-thin min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain px-2">
-        {shown.length === 0 && <li className="px-3 py-6 text-center text-meta text-muted">Tidak ada proyek yang cocok.</li>}
+        {shown.length === 0 && <li className="px-3 py-6 text-center text-meta text-muted">No matching projects.</li>}
         {shown.map((p) => {
           const current = p.id === project.id;
           const thumb = p.assets.find((a) => a.thumbnail)?.thumbnail;
@@ -129,11 +129,11 @@ export function ProjectBrowser({ onDone }: { onDone?: () => void }) {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-ui font-medium">{p.name}</span>
                   <span className="block truncate text-meta text-muted">
-                    {p.assets.length} file · {formatTime(projectDuration(p))}
+                    {p.assets.length} file{p.assets.length === 1 ? "" : "s"} · {formatTime(projectDuration(p))}
                     {ago(p.updatedAt) && ` · ${ago(p.updatedAt)}`}
                   </span>
                 </span>
-                {current && <Check className="size-4 shrink-0 text-secondary" aria-label="Sedang dibuka" />}
+                {current && <Check className="size-4 shrink-0 text-secondary" aria-label="Open now" />}
               </button>
             </li>
           );
@@ -145,7 +145,7 @@ export function ProjectBrowser({ onDone }: { onDone?: () => void }) {
           onClick={start}
           className="flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] text-ui font-medium transition-colors hover:bg-panel-2"
         >
-          <Plus className="size-4" /> Rekaman baru
+          <Plus className="size-4" /> New recording
         </button>
       </div>
     </div>

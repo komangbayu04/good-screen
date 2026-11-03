@@ -18,7 +18,7 @@ export function LibraryContent({ menu, onPicked }: { menu: LibraryMenu; onPicked
           title="Media"
           kinds={["video", "image", "audio"]}
           accept="video/*,image/*,audio/*"
-          emptyText="Rekaman dan file yang kamu unggah muncul di sini."
+          emptyText="Your recordings and uploaded files show up here."
           onPicked={onPicked}
         />
       );
