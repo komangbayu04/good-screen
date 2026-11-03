@@ -23,6 +23,12 @@ export interface EditorState {
   addAsset: (asset: Asset, opts?: { place?: boolean }) => void;
   updateAsset: (id: string, patch: Partial<Asset>) => void;
   removeAsset: (id: string) => void;
+  /**
+   * Deletes files for good: from the project, its clips, any webcam link to them, and
+   * from undo history too (their media is deleted, so undo must not bring them back).
+   * `clipIds` are extra clips that go with them (e.g. zooms over a deleted recording).
+   */
+  purgeAssets: (ids: string[], clipIds?: string[]) => void;
   /** Applies commands as ONE undoable step. */
   dispatch: (commands: EditCommand[], author?: Author) => void;
   /** Start of a drag gesture: snapshot once, then use `live` for each move. */
@@ -103,6 +109,21 @@ export const useEditor = create<EditorState>()(
           s.project.clips = s.project.clips.filter((c) => c.assetId !== id);
         });
       },
+      purgeAssets: (ids, clipIds = []) =>
+        set((s) => {
+          const gone = new Set(ids);
+          const goneClips = new Set(clipIds);
+          const drop = (p: Project) => {
+            p.assets = p.assets.filter((a) => !gone.has(a.id));
+            p.clips = p.clips.filter((c) => !goneClips.has(c.id) && (!c.assetId || !gone.has(c.assetId)));
+            for (const c of p.clips) if (c.screen?.camera && gone.has(c.screen.camera.assetId)) c.screen.camera = undefined;
+          };
+          drop(s.project);
+          s.past.forEach(drop);
+          s.future.forEach(drop);
+          s.project.updatedAt = Date.now();
+          if (s.selectedClipId && !s.project.clips.some((c) => c.id === s.selectedClipId)) s.selectedClipId = null;
+        }),
       dispatch: (commands, author = "user") => {
         if (!commands.length) return;
         snapshot();

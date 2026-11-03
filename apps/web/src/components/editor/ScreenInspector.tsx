@@ -285,13 +285,15 @@ export function ZoomTab({ clip }: { clip: Clip }) {
   const aspect = asset?.width && asset.height ? asset.width / asset.height : 16 / 9;
   const pickRef = useRef<HTMLDivElement>(null);
 
+  // Picking a point always works: it fixes the focus there (and stops following the cursor).
   const pointTo = (clientX: number, clientY: number, live: boolean) => {
     const r = pickRef.current!.getBoundingClientRect();
     const x = Math.round(Math.min(1, Math.max(0, (clientX - r.left) / r.width)) * 1000) / 1000;
     const y = Math.round(Math.min(1, Math.max(0, (clientY - r.top) / r.height)) * 1000) / 1000;
-    if (live) useEditor.getState().live(zoomCmd({ x, y }));
-    else useEditor.getState().dispatch([zoomCmd({ x, y })]);
+    if (live) useEditor.getState().live(zoomCmd({ x, y, follow: false }));
+    else useEditor.getState().dispatch([zoomCmd({ x, y, follow: false })]);
   };
+  const following = !!z.follow && !!asset?.cursor?.length;
 
   return (
     <>
@@ -299,9 +301,9 @@ export function ZoomTab({ clip }: { clip: Clip }) {
         {!!asset?.cursor?.length && (
           <ToggleRow label="Follow cursor" on={!!z.follow} onChange={(follow) => useEditor.getState().dispatch([zoomCmd({ follow })])} />
         )}
-        {z.follow && asset?.cursor?.length ? (
-          <p className="text-meta leading-relaxed text-muted">The zoom moves with the cursor. Turn this off to pick a focus point yourself.</p>
-        ) : (
+        <p className="text-meta leading-relaxed text-muted">
+          {following ? "The zoom moves with the cursor. Click the picture to fix the focus on a point instead." : "Click or drag on the picture to choose where the zoom looks."}
+        </p>
         <div
           ref={pickRef}
           role="slider"
@@ -326,7 +328,7 @@ export function ZoomTab({ clip }: { clip: Clip }) {
             if (!d) return;
             e.preventDefault();
             e.stopPropagation();
-            useEditor.getState().dispatch([zoomCmd({ x: Math.min(1, Math.max(0, z.x + d[0]!)), y: Math.min(1, Math.max(0, z.y + d[1]!)) })]);
+            useEditor.getState().dispatch([zoomCmd({ x: Math.min(1, Math.max(0, z.x + d[0]!)), y: Math.min(1, Math.max(0, z.y + d[1]!)), follow: false })]);
           }}
           className="relative w-full cursor-crosshair touch-none overflow-hidden rounded-[10px] bg-black ring-1 ring-ink/10 outline-none focus-visible:ring-2 focus-visible:ring-secondary"
           style={{ aspectRatio: aspect }}
@@ -345,9 +347,12 @@ export function ZoomTab({ clip }: { clip: Clip }) {
               top: `${z.y * 100 * (1 - 1 / z.scale)}%`,
             }}
           />
-          <span className="pointer-events-none absolute size-3 -translate-1/2 rounded-full border-2 border-white bg-accent" style={{ left: `${z.x * 100}%`, top: `${z.y * 100}%` }} />
+          {/* While following, the marker is dimmed: the real focus moves with the cursor. */}
+          <span
+            className={`pointer-events-none absolute size-3 -translate-1/2 rounded-full border-2 border-white bg-accent ${following ? "opacity-40" : ""}`}
+            style={{ left: `${z.x * 100}%`, top: `${z.y * 100}%` }}
+          />
         </div>
-        )}
       </Section>
       <Section title="Selected zoom">
         <SliderField label="Magnification" value={z.scale} min={1.1} max={4} step={0.05} decimals={2} suffix="×" ticks={[2, 3]} toCommand={(v) => zoomCmd({ scale: v })} />

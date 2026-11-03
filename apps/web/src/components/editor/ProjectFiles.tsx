@@ -5,6 +5,7 @@ import { Film, Image as ImageIcon, Music, Plus, Trash2, Wand2 } from "lucide-rea
 import { useEditor, type Asset, type AssetKind } from "@goodscreen/editor-core";
 import { formatDuration } from "@/lib/media";
 import { importFiles } from "@/lib/import";
+import { deleteFile } from "@/lib/files";
 import { PanelHeader } from "./PanelHeader";
 
 /** File list for one kind of project asset (recordings and uploads). */
@@ -124,7 +125,8 @@ function FileRow({ asset, onAdd, pickLabel }: { asset: Asset; onAdd: () => void;
         </div>
       </button>
       <button
-        onClick={() => useEditor.getState().removeAsset(asset.id)}
+        // Same permanent delete as on desktop (frees the stored file), so it asks first.
+        onClick={() => window.confirm(`Delete "${asset.name}"? This can't be undone.`) && void deleteFile(asset.id)}
         aria-label={`Delete ${asset.name}`}
         className="absolute top-1/2 right-2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted opacity-100 transition-opacity hover:bg-panel-3 hover:text-fg lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100"
       >

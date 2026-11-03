@@ -1,4 +1,4 @@
-import { createStore as createIdbStore, get, set } from "idb-keyval";
+import { createStore as createIdbStore, delMany, get, set } from "idb-keyval";
 import { create } from "zustand";
 import { ensureTracks, useEditor, type Project } from "@goodscreen/editor-core";
 
@@ -30,6 +30,15 @@ export async function saveMedia(assetId: string, blob: Blob) {
     await set(assetId, blob, mediaDb());
   } catch (e) {
     console.warn("[persistence] media not saved", e);
+  }
+}
+
+/** Frees the stored originals of files the user deleted (only ever on their explicit request). */
+export async function deleteMedia(assetIds: string[]) {
+  try {
+    await delMany(assetIds, mediaDb());
+  } catch (e) {
+    console.warn("[persistence] media not deleted", e);
   }
 }
 
@@ -68,7 +77,7 @@ export async function restoreSession(): Promise<boolean> {
   });
   useSaveStatus.setState({ status: "saved", savedAt: saved.savedAt });
   // Media files are never deleted automatically: a session saved in a bad state must
-  // not take the originals with it. TODO(backend): garbage-collect on the server.
+  // not take the originals with it. Only an explicit delete (deleteMedia) frees them.
   return true;
 }
 

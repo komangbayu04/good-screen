@@ -1,6 +1,10 @@
 "use client";
 
+import { useState } from "react";
+import { Film, Image as ImageIcon, Music, Trash2 } from "lucide-react";
 import { FPS_OPTIONS, FRAME_PRESETS, framePresetOf, useEditor } from "@goodscreen/editor-core";
+import { deleteFile, projectFiles } from "@/lib/files";
+import { formatDuration } from "@/lib/media";
 import { ClipInspector } from "./ClipInspector";
 import { FieldLabel } from "./controls";
 
@@ -27,9 +31,82 @@ export function Inspector() {
           <FpsPicker />
         </Group>
         <OutputSize />
+        <Files />
         <p className="text-meta leading-relaxed text-muted">Select a clip on the timeline to edit it.</p>
       </div>
     </div>
+  );
+}
+
+/**
+ * The project's recordings and uploads, each deletable. Deleting frees the stored file
+ * and can't be undone, so the row turns into a confirmation first.
+ */
+function Files() {
+  const project = useEditor((s) => s.project);
+  const files = projectFiles(project);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  if (!files.length) return null;
+  return (
+    <Group label="Files">
+      <ul className="space-y-1">
+        {files.map((a) => {
+          const Icon = a.kind === "video" ? Film : a.kind === "audio" ? Music : ImageIcon;
+          const used = project.clips.filter((c) => c.assetId === a.id).length;
+          return (
+            <li key={a.id} className="flex h-11 items-center gap-2.5 rounded-[10px] bg-panel-3/40 pr-1.5 pl-1.5">
+              {confirming === a.id ? (
+                <>
+                  <p className="min-w-0 flex-1 truncate pl-1 text-xs text-fg/90">
+                    Delete this file{used ? ` and its ${used === 1 ? "clip" : `${used} clips`}` : ""}? This can&apos;t be undone.
+                  </p>
+                  <button onClick={() => setConfirming(null)} className="h-7 shrink-0 rounded-[7px] px-2.5 text-xs text-muted transition-colors hover:text-fg">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setConfirming(null);
+                      void deleteFile(a.id);
+                    }}
+                    className="h-7 shrink-0 rounded-[7px] bg-red-500/90 px-2.5 text-xs font-medium text-white transition-colors hover:bg-red-500"
+                  >
+                    Delete
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="flex h-8 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-panel-3">
+                    {a.thumbnail ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={a.thumbnail} alt="" className="size-full object-cover" />
+                    ) : (
+                      <Icon className="size-3.5 text-muted" />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs text-fg/90" title={a.name}>
+                      {a.name}
+                    </span>
+                    <span className="block font-mono text-2xs text-muted tabular-nums">
+                      {a.kind === "image" ? "Image" : formatDuration(a.duration)}
+                      {used ? ` · on timeline` : ""}
+                    </span>
+                  </span>
+                  <button
+                    onClick={() => setConfirming(a.id)}
+                    aria-label={`Delete ${a.name}`}
+                    title="Delete file"
+                    className="flex size-7 shrink-0 items-center justify-center rounded-[7px] text-muted transition-colors hover:bg-panel-3 hover:text-red-400"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </Group>
   );
 }
 
