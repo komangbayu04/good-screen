@@ -118,8 +118,9 @@ function workAreas(samples: CursorSample[], radius: number, minHold: number) {
     let j = i + 1;
     for (; j < samples.length; j++) {
       const s = samples[j]!;
-      // A long gap (pointer lost) ends the area too.
-      if (s.t - samples[j - 1]!.t > 1.5 || Math.hypot(s.x - cx, s.y - cy) > radius) break;
+      // Leaving the area ends it. A gap doesn't: a tab capture hides a pointer that rests,
+      // and it comes back where it was.
+      if (Math.hypot(s.x - cx, s.y - cy) > radius) break;
       cx += (s.x - cx) / (n + 1);
       cy += (s.y - cy) / (n + 1);
       n++;

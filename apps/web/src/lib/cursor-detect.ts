@@ -22,11 +22,12 @@ const QUICK_RADIUS = 6;
 /** Pointer heights at 100% display scaling. */
 const BASE_H: Record<CursorShape, number> = { arrow: 19, text: 17, hand: 22 };
 /**
- * Scales to try: 0.8× to 2.7× in 8% steps. Each template tolerates about ±1px of size
+ * Scales to try: 0.68× to 2.5× in 8% steps. Each template tolerates about ±1px of size
  * difference, so the steps overlap and any pointer size in between is found (pointers
- * differ by OS and theme, and display scaling isn't limited to 100/125/150%).
+ * differ by OS and theme, display scaling isn't limited to 100/125/150%, and a tab
+ * capture is often scaled down, cursor and all).
  */
-const SCALES = Array.from({ length: 16 }, (_, i) => Math.round(0.8 * 1.08 ** i * 1000) / 1000);
+const SCALES = Array.from({ length: 18 }, (_, i) => Math.round(0.68 * 1.08 ** i * 1000) / 1000);
 const MIN_SCORE = 0.8;
 /**
  * Finding a pointer from nothing needs an almost complete shape: a real pointer's outline
@@ -270,6 +271,15 @@ const DECOY_FOR_S = 3;
 /** A match that never moved is dropped after this many full scans with motion this far (px) from it. */
 const STILL_SCANS = 3;
 const STILL_FAR = 32;
+/**
+ * A changing glyph (a counter, a clock) can match an arrow that hops back and forth inside
+ * a tiny area; a pointer travels. This many turn-backs (moves of at least HOP_MIN px) while
+ * staying within HOP_AREA px, never having travelled further since it was found: not the
+ * pointer (a real one is found while it moves, and may wiggle later to point at something).
+ */
+const HOP_TURNS = 4;
+const HOP_MIN = 3;
+const HOP_AREA = 30;
 
 /** Share of points whose brightness moved by more than 40 between two signatures. */
 function changedShare(a: Uint8Array, b: Uint8Array) {
@@ -306,6 +316,12 @@ export function createDetector() {
     moved: boolean;
     idle: number;
     from: number;
+    /** Last real move, how often moves turned back, and the area they stayed in (see HOP_*). */
+    pdx: number;
+    pdy: number;
+    turns: number;
+    box: [number, number, number, number];
+    travelled: boolean;
   } | null = null;
   /** Look-alikes found out recently (see DECOY_CHANGE): never matched until `until`. */
   let decoys: { x: number; y: number; until: number }[] = [];
@@ -622,6 +638,29 @@ export function createDetector() {
     // While it rests, keep comparing against how it looked when it stopped (slow changes add up).
     const sig = last && found.x === last.x && found.y === last.y && found.t === last.t ? last.sig : found.sig;
     const same = !!last && found.x === last.x && found.y === last.y;
+    // Hopping in place?
+    const mdx = last ? found.x - last.x : 0;
+    const mdy = last ? found.y - last.y : 0;
+    const hop = Math.hypot(mdx, mdy) >= HOP_MIN;
+    let { pdx, pdy, turns, box, travelled } = last ?? { pdx: 0, pdy: 0, turns: 0, box: [found.x, found.y, found.x, found.y] as [number, number, number, number], travelled: false };
+    box = [Math.min(box[0], found.x), Math.min(box[1], found.y), Math.max(box[2], found.x), Math.max(box[3], found.y)];
+    if (box[2] - box[0] > HOP_AREA || box[3] - box[1] > HOP_AREA) {
+      box = [found.x, found.y, found.x, found.y]; // it travels: start over
+      turns = 0;
+      travelled = true;
+    }
+    if (hop) {
+      if (mdx * pdx + mdy * pdy < 0) turns++;
+      pdx = mdx;
+      pdy = mdy;
+    }
+    if (last && !travelled && turns >= HOP_TURNS) {
+      decoys.push({ x: found.x, y: found.y, until: t + DECOY_FOR_S });
+      samples.length = last.from; // it was never the pointer
+      cut = Math.min(cut, last.from);
+      last = null;
+      return;
+    }
     last = {
       x: found.x,
       y: found.y,
@@ -634,6 +673,11 @@ export function createDetector() {
       moved: confirmed || (!!last && (last.moved || !same)),
       idle: last && same ? last.idle : 0,
       from: last ? last.from : samples.length,
+      pdx,
+      pdy,
+      turns,
+      box,
+      travelled,
     };
     const sample: CursorSample = { t: Math.round(t * 1000) / 1000, x: Math.round((found.x / vw) * 1e5) / 1e5, y: Math.round((found.y / vh) * 1e5) / 1e5 };
     if (found.t.shape !== "arrow") sample.s = found.t.shape;
