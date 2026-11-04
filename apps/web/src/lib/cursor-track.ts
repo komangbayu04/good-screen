@@ -50,6 +50,7 @@ function inWorker(track: MediaStreamTrack, time: () => number | null, Processor:
   const { readable } = new Processor({ track: own, maxBufferSize: 1 });
   const worker = new Worker(new URL("./cursor-worker.ts", import.meta.url), { type: "module" });
   const samples: CursorSample[] = [];
+  let done: Promise<CursorSample[]> | null = null;
   let finish: ((s: CursorSample[]) => void) | null = null;
   worker.onmessage = (e: MessageEvent<{ type: "samples" | "done"; from: number; samples: CursorSample[] }>) => {
     samples.length = Math.min(samples.length, e.data.from);
@@ -60,14 +61,28 @@ function inWorker(track: MediaStreamTrack, time: () => number | null, Processor:
   const sendClock = () => worker.postMessage({ type: "clock", elapsed: time(), at: Date.now() });
   sendClock();
   const clockId = setInterval(sendClock, 250);
+  // A worker that can't load (blocked, or an old browser) mustn't leave the take without a
+  // pointer track: carry on on the main thread.
+  let fallback: CursorTracker | null = null;
+  worker.onerror = () => {
+    if (fallback || done) return;
+    clearInterval(clockId);
+    worker.terminate();
+    fallback = onMainThread(track, time);
+  };
   worker.postMessage({ type: "start", readable }, [readable as unknown as Transferable]);
 
-  let done: Promise<CursorSample[]> | null = null;
   return {
-    samples,
+    get samples() {
+      return fallback ? fallback.samples : samples;
+    },
     stop: () => {
       if (done) return done;
       clearInterval(clockId);
+      if (fallback) {
+        own.stop();
+        return (done = fallback.stop());
+      }
       done = new Promise<CursorSample[]>((resolve) => {
         const end = () => {
           worker.terminate();

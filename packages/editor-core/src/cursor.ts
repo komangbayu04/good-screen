@@ -105,36 +105,63 @@ export function followOrigin(samples: CursorSample[] | undefined, from: number, 
   return { x: path[i * 2]! + (path[j * 2]! - path[i * 2]!) * r, y: path[i * 2 + 1]! + (path[j * 2 + 1]! - path[i * 2 + 1]!) * r };
 }
 
+type Segment = { start: number; end: number; x: number; y: number };
+
+/** Where the pointer works in one area: stays within `radius` for at least `minHold` s. */
+function workAreas(samples: CursorSample[], radius: number, minHold: number) {
+  const out: Segment[] = [];
+  let i = 0;
+  while (i < samples.length) {
+    let cx = samples[i]!.x;
+    let cy = samples[i]!.y;
+    let n = 1;
+    let j = i + 1;
+    for (; j < samples.length; j++) {
+      const s = samples[j]!;
+      // A long gap (pointer lost) ends the area too.
+      if (s.t - samples[j - 1]!.t > 1.5 || Math.hypot(s.x - cx, s.y - cy) > radius) break;
+      cx += (s.x - cx) / (n + 1);
+      cy += (s.y - cy) / (n + 1);
+      n++;
+    }
+    if (samples[j - 1]!.t - samples[i]!.t >= minHold) out.push({ start: samples[i]!.t, end: samples[j - 1]!.t, x: cx, y: cy });
+    i = j;
+  }
+  return out;
+}
+
 /**
- * Automatic zooms from the clicks in a pointer track: zoom in a little before a click,
- * hold while clicks keep coming close together, zoom out after the last one.
- * Returns source-time segments with the first click's position (the zoom follows the pointer).
+ * Automatic zooms for a recording, from its pointer track: around every click (a little
+ * before it, holding a while after), and wherever the pointer works in one area. Zooms
+ * that touch or come close merge into one (the zoom follows the pointer, so one that pans
+ * along reads calmer than in-out-in); between two others there is room to zoom out and in.
+ * Returns source-time segments with where each starts looking.
  */
-export function clickZoomSegments(
+export function autoZoomSegments(
   samples: CursorSample[] | undefined,
   duration: number,
-  { lead = 0.6, hold = 2.2, mergeGap = 3.5, outGap = 0.9, minLength = 1.2 } = {},
-): { start: number; end: number; x: number; y: number }[] {
-  const clicks = (samples ?? []).filter((s) => s.c);
-  const out: { start: number; end: number; x: number; y: number }[] = [];
-  let lastClick = -Infinity;
-  for (const c of clicks) {
+  { lead = 0.6, hold = 2.2, radius = 0.2, minHold = 1.6, mergeGap = 1.2, outGap = 0.9, minLength = 1.2 } = {},
+): Segment[] {
+  if (!samples || samples.length < 2) return [];
+  const raw: Segment[] = [
+    ...samples.filter((s) => s.c).map((c) => ({ start: c.t - lead, end: c.t + hold, x: c.x, y: c.y })),
+    ...workAreas(samples, radius, minHold).map((w) => ({ ...w, start: w.start - lead, end: w.end + lead })),
+  ]
+    .map((r) => ({ ...r, start: Math.max(0, r.start), end: Math.min(duration, r.end) }))
+    .sort((a, b) => a.start - b.start);
+  const out: Segment[] = [];
+  for (const seg of raw) {
     const prev = out[out.length - 1];
-    const gap = c.t - lastClick;
-    lastClick = c.t;
-    // Clicks close together are one piece of work: one zoom that pans along reads calmer than in-out-in.
-    if (prev && gap <= mergeGap) {
-      prev.end = Math.min(duration, c.t + hold);
+    if (prev && seg.start - prev.end <= mergeGap) {
+      prev.end = Math.max(prev.end, seg.end);
       continue;
     }
-    const seg = { start: Math.max(0, c.t - lead), end: Math.min(duration, c.t + hold), x: c.x, y: c.y };
-    // Leave room to zoom out and back in between two zooms.
     if (prev && seg.start < prev.end + outGap) {
       const mid = (prev.end + seg.start) / 2;
       prev.end = mid - outGap / 2;
       seg.start = mid + outGap / 2;
     }
-    out.push(seg);
+    out.push({ ...seg });
   }
   return out.filter((s) => s.end - s.start >= minLength);
 }
