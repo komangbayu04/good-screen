@@ -14,6 +14,21 @@ export function projectFiles(project: Project): Asset[] {
   return project.assets.filter((a) => a.kind !== "motion" && !cameras.has(a.id));
 }
 
+/**
+ * Deletes a whole project for good, with every recording and upload in it (their stored
+ * originals too). Can't be undone, so ask first.
+ */
+export async function deleteProject(projectId: string) {
+  const { project, otherProjects, deleteProject: remove } = useEditor.getState();
+  const target = [project, ...otherProjects].find((p) => p.id === projectId);
+  if (!target) return;
+  const ids = target.assets.filter((a) => a.kind !== "motion").map((a) => a.id);
+  const urls = target.assets.filter((a) => a.src).map((a) => a.src!);
+  remove(projectId);
+  urls.forEach((u) => URL.revokeObjectURL(u));
+  await deleteMedia(ids);
+}
+
 /** Zoom segments that only magnify this file's footage (none of the remaining footage). */
 function orphanedZooms(project: Project, assetId: string) {
   const overlaps = (a: { start: number; duration: number }, b: { start: number; duration: number }) => a.start < b.start + b.duration && b.start < a.start + a.duration;

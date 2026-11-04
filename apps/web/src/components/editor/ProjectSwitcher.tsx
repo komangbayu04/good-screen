@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
-import { Check, ChevronDown, Plus, Search, Video } from "lucide-react";
+import { Check, ChevronDown, Plus, Search, Trash2, Video } from "lucide-react";
 import { projectDuration, useEditor, type Project } from "@goodscreen/editor-core";
+import { deleteProject } from "@/lib/files";
 import { formatTime } from "@/lib/media";
 import { setWorkspace } from "@/lib/workspace";
 
@@ -74,6 +75,8 @@ export function ProjectBrowser({ onDone }: { onDone?: () => void }) {
   const project = useEditor((s) => s.project);
   const others = useEditor((s) => s.otherProjects);
   const [q, setQ] = useState("");
+  // Deleting removes the project's recordings for good, so the row asks first.
+  const [confirming, setConfirming] = useState<string | null>(null);
 
   const all = useMemo(() => [project, ...[...others].sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))], [project, others]);
   const shown = all.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase()));
@@ -111,12 +114,32 @@ export function ProjectBrowser({ onDone }: { onDone?: () => void }) {
         {shown.map((p) => {
           const current = p.id === project.id;
           const thumb = p.assets.find((a) => a.thumbnail)?.thumbnail;
+          if (confirming === p.id)
+            return (
+              <li key={p.id} className="flex h-[52px] items-center gap-2 rounded-[12px] bg-panel-2 px-3">
+                <p className="min-w-0 flex-1 truncate text-xs text-fg/90">
+                  Delete &ldquo;{p.name}&rdquo; and its recordings? This can&apos;t be undone.
+                </p>
+                <button onClick={() => setConfirming(null)} className="h-7 shrink-0 rounded-[7px] px-2.5 text-xs text-muted transition-colors hover:text-fg">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setConfirming(null);
+                    void deleteProject(p.id);
+                  }}
+                  className="h-7 shrink-0 rounded-[7px] bg-red-500/90 px-2.5 text-xs font-medium text-white transition-colors hover:bg-red-500"
+                >
+                  Delete
+                </button>
+              </li>
+            );
           return (
-            <li key={p.id}>
+            <li key={p.id} className={`flex items-center rounded-[12px] pr-1.5 transition-colors ${current ? "bg-panel-2" : "hover:bg-panel-2"}`}>
               <button
                 onClick={() => open(p)}
                 aria-current={current ? "true" : undefined}
-                className={`flex w-full items-center gap-3 rounded-[12px] p-2 text-left transition-colors ${current ? "bg-panel-2" : "hover:bg-panel-2"}`}
+                className="flex min-w-0 flex-1 items-center gap-3 rounded-[12px] p-2 text-left"
               >
                 <span className="flex h-9 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-panel-3 outline-1 -outline-offset-1 outline-white/10">
                   {thumb ? (
@@ -134,6 +157,14 @@ export function ProjectBrowser({ onDone }: { onDone?: () => void }) {
                   </span>
                 </span>
                 {current && <Check className="size-4 shrink-0 text-secondary" aria-label="Open now" />}
+              </button>
+              <button
+                onClick={() => setConfirming(p.id)}
+                aria-label={`Delete ${p.name}`}
+                title="Delete project"
+                className="flex size-8 shrink-0 items-center justify-center rounded-[8px] text-muted transition-colors hover:bg-panel-3 hover:text-red-400"
+              >
+                <Trash2 className="size-3.5" />
               </button>
             </li>
           );

@@ -48,6 +48,8 @@ export interface EditorState {
   setFormat: (format: Partial<Pick<Project, "width" | "height" | "fps">>) => void;
   newProject: () => void;
   openProject: (id: string) => void;
+  /** Removes a project; if it's the open one, the most recent other project opens (or a new one). */
+  deleteProject: (id: string) => void;
 }
 
 export const useEditor = create<EditorState>()(
@@ -191,6 +193,22 @@ export const useEditor = create<EditorState>()(
         const target = get().otherProjects.find((p) => p.id === id);
         if (target) switchTo(target, get().project);
       },
+      deleteProject: (id) =>
+        set((s) => {
+          if (s.project.id !== id) {
+            s.otherProjects = s.otherProjects.filter((p) => p.id !== id);
+            return;
+          }
+          // Deleting the open project opens the most recent other one, or a fresh one.
+          const [next, ...rest] = [...s.otherProjects].sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+          s.project = next ?? createProject();
+          s.otherProjects = rest;
+          s.past = [];
+          s.future = [];
+          s.selectedClipId = null;
+          s.playhead = 0;
+          s.playing = false;
+        }),
       renameProject: (name) =>
         set((s) => {
           s.project.name = name.trim() || "Untitled recording";
