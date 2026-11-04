@@ -57,7 +57,7 @@ function OutputSize() {
 /**
  * Aspect ratio cards: a true-to-shape outline, the ratio, and (when `detailed`) its name.
  * Where each one is used is in the tooltip. Selected = tinted fill + secondary ring,
- * the same as every other card picker (cursor style, camera layout, animation).
+ * the same as every other card picker (camera layout, animation).
  */
 export function FramePicker({ detailed }: { detailed?: boolean }) {
   const project = useEditor((s) => s.project);

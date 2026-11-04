@@ -3,7 +3,6 @@
 import { useRef } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import {
-  DEFAULT_SCREEN_CURSOR,
   DEFAULT_SCREEN_STYLE,
   DEFAULT_ZOOM,
   useEditor,
@@ -13,10 +12,9 @@ import {
   type ClipPatch,
   type EditCommand,
   type ScreenCamera,
-  type ScreenCursor,
   type ZoomSpec,
 } from "@goodscreen/editor-core";
-import { CURSOR_STYLES, CursorGlyph, SCREEN_BACKGROUNDS } from "@goodscreen/motion";
+import { SCREEN_BACKGROUNDS } from "@goodscreen/motion";
 import { fileToAsset } from "@/lib/media";
 import { saveMedia } from "@/lib/persistence";
 import { Chips, FieldLabel, Section, SliderField, ToggleRow } from "./controls";
@@ -110,55 +108,7 @@ export function BackgroundTab({ clip }: { clip: Clip }) {
           </>
         )}
       </Section>
-      <CursorSection clip={clip} />
     </>
-  );
-}
-
-/* ----------------------------------------------------------------- Cursor */
-
-function CursorSection({ clip }: { clip: Clip }) {
-  const dispatch = useEditor((s) => s.dispatch);
-  const tracked = useEditor((s) => !!s.project.assets.find((a) => a.id === clip.assetId)?.cursor?.length);
-  const cursor = { ...DEFAULT_SCREEN_CURSOR, ...clip.screen?.cursor };
-  // The whole cursor object is sent: screen styles merge one level deep.
-  const cursorCmd = (patch: Partial<ScreenCursor>) => screenPatch(clip.id, { cursor: { ...cursor, ...patch } });
-
-  return (
-    <Section title="Cursor">
-      {!tracked ? (
-        <p className="text-meta leading-relaxed text-muted">This recording has no cursor track. New screen recordings track the cursor automatically.</p>
-      ) : (
-        <>
-          <ToggleRow label="Custom cursor" on={cursor.show} onChange={(show) => dispatch([cursorCmd({ show })])} />
-          {cursor.show && (
-            <>
-              <div className="grid grid-cols-4 gap-1.5">
-                {CURSOR_STYLES.map((c) => {
-                  const on = cursor.style === c.id;
-                  return (
-                    <button
-                      key={c.id}
-                      aria-pressed={on}
-                      onClick={() => dispatch([cursorCmd({ style: c.id })])}
-                      className={`flex flex-col items-center gap-1.5 rounded-[10px] pt-3 pb-2 text-meta transition-colors ${
-                        on ? "is-selected" : "bg-panel-3/40 text-muted hover:text-fg"
-                      }`}
-                    >
-                      <span className="flex h-7 items-start">
-                        <CursorGlyph style={c.id} height={24} />
-                      </span>
-                      {c.label}
-                    </button>
-                  );
-                })}
-              </div>
-              <SliderField label="Size" value={cursor.size} min={1} max={4} step={0.1} decimals={1} suffix="×" toCommand={(v) => cursorCmd({ size: v })} />
-            </>
-          )}
-        </>
-      )}
-    </Section>
   );
 }
 

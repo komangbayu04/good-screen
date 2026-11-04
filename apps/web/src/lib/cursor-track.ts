@@ -6,12 +6,12 @@ import type { CursorSample, CursorShape } from "@goodscreen/editor-core";
  * Browsers never tell a page where the pointer is outside its own tab, but the
  * capture has the pointer drawn in. So:
  *  - every frame, look for the pointer close to where it last was (cheap, and it keeps
- *    up with fast moves, so a custom pointer drawn later stays on top of the real one);
+ *    up with fast moves, so a zoom that follows it stays on it);
  *  - ~10 times a second, also diff a small copy of the frame with the previous one to
  *    find small changed spots (a moving pointer leaves two) and look there, which finds
  *    the pointer again after a jump or when it was lost.
- * The arrow, the text I-beam and the link hand are recognised. Other shapes leave a gap,
- * during which the editor simply shows the recorded pointer.
+ * The arrow, the text I-beam and the link hand are recognised; other shapes leave a gap.
+ * Clicks are marked too (the screen changing under a pointer that stopped), for auto-zoom.
  */
 
 const FULL_SCAN_MS = 100;
@@ -39,6 +39,15 @@ const MIN_SCORE = 0.8;
 const ACQUIRE_COVER = 0.97;
 /** While the pointer rests, a sample at least this often (so a rest doesn't read as a gap). */
 const REST_SAMPLE_S = 0.25;
+/**
+ * A click shows as the screen changing under or near a pointer that has stopped (a
+ * button pressing, a menu opening, a page loading). Hover effects start as the pointer
+ * arrives, so it must have rested this long first (s), and the change must be this close
+ * (share of the recording's width) or cover this much of the screen (a new page).
+ */
+const CLICK_REST_S = 0.2;
+const CLICK_NEAR = 0.08;
+const CLICK_PAGE = 0.3;
 
 type Pt = [number, number];
 type Template = {
@@ -263,6 +272,8 @@ export function trackCursor(track: MediaStreamTrack, time: () => number | null):
   const small = document.createElement("canvas").getContext("2d", { willReadFrequently: true })!;
   const crop = document.createElement("canvas").getContext("2d", { willReadFrequently: true })!;
   let prev: Uint8Array | null = null;
+  /** The last diff scan's changed cells (count per cell), for click detection. */
+  let diff: { cells: Uint8Array; cw: number; ch: number; size: number; share: number } | null = null;
   /** Last hotspot, its template, how far it moved since the frame before, and its `sig`. */
   let last: {
     x: number;
@@ -339,6 +350,7 @@ export function trackCursor(track: MediaStreamTrack, time: () => number | null):
     const luma = new Uint8Array(dw * dh);
     for (let i = 0, p = 0; p < luma.length; i += 4, p++) luma[p] = (rgba[i]! * 77 + rgba[i + 1]! * 150 + rgba[i + 2]! * 29) >> 8;
     const spots: { x0: number; y0: number; x1: number; y1: number }[] = [];
+    diff = null;
     if (prev) {
       const cw = Math.ceil(dw / CELL);
       const ch = Math.ceil(dh / CELL);
@@ -353,6 +365,7 @@ export function trackCursor(track: MediaStreamTrack, time: () => number | null):
           }
         }
       for (let c = 0; c < cells.length; c++) if (cells[c]! >= 2) changed++;
+      diff = { cells, cw, ch, size: (vw / dw) * CELL, share: changed / cells.length };
       // Scrolling or video playback changes much of the screen: no pointer hints there.
       if (changed > 0 && changed < cells.length * 0.15) {
         const seen = new Uint8Array(cells.length);
@@ -390,6 +403,19 @@ export function trackCursor(track: MediaStreamTrack, time: () => number | null):
     prev = luma;
     return spots;
   };
+
+  /** Changed cells within `r` capture pixels of (x, y) in the last diff scan. */
+  const changedNear = (x: number, y: number, r: number) => {
+    if (!diff) return 0;
+    const { cells, cw, ch, size } = diff;
+    let n = 0;
+    for (let cy = Math.max(0, Math.floor((y - r) / size)); cy <= Math.min(ch - 1, Math.floor((y + r) / size)); cy++)
+      for (let cx = Math.max(0, Math.floor((x - r) / size)); cx <= Math.min(cw - 1, Math.floor((x + r) / size)); cx++) if (cells[cy * cw + cx]! >= 2) n++;
+    return n;
+  };
+  /** Where the pointer stopped and since when; one click per stop (a blinking caret isn't more clicks). */
+  let rest: { x: number; y: number; since: number; armed: boolean } | null = null;
+  let lastFullT = -Infinity;
 
   /** One frame at recording time `t`; `full` adds the diff scan (≈10×/s). */
   const tick = (t: number, full: boolean) => {
@@ -454,11 +480,23 @@ export function trackCursor(track: MediaStreamTrack, time: () => number | null):
         }
       }
     }
+    const prevFullT = lastFullT;
+    if (full) lastFullT = t;
     if (!found) {
       // One blurred frame isn't a lost pointer; give up only when the full scan misses too.
       if (full) last = null;
+      rest = null;
       return;
     }
+    if (!rest || Math.hypot(found.x - rest.x, found.y - rest.y) > 2) rest = { x: found.x, y: found.y, since: t, armed: true };
+    // The previous scan must already have the pointer resting, so its own move isn't the change.
+    const clicked =
+      full &&
+      rest.armed &&
+      prevFullT >= rest.since &&
+      t - rest.since >= CLICK_REST_S &&
+      (changedNear(found.x, found.y, CLICK_NEAR * vw) >= 2 || (diff?.share ?? 0) >= CLICK_PAGE);
+    if (clicked) rest.armed = false;
     // While it rests, keep comparing against how it looked when it stopped (slow changes add up).
     const sig = last && found.x === last.x && found.y === last.y && found.t === last.t ? last.sig : found.sig;
     const same = !!last && found.x === last.x && found.y === last.y;
@@ -475,9 +513,10 @@ export function trackCursor(track: MediaStreamTrack, time: () => number | null):
     };
     const sample: CursorSample = { t: Math.round(t * 1000) / 1000, x: Math.round((found.x / vw) * 1e5) / 1e5, y: Math.round((found.y / vh) * 1e5) / 1e5 };
     if (found.t.shape !== "arrow") sample.s = found.t.shape;
+    if (clicked) sample.c = 1;
     // A resting pointer needs only a sample now and then; a moving one gets every frame.
     const prevSample = samples[samples.length - 1];
-    if (prevSample && prevSample.x === sample.x && prevSample.y === sample.y && prevSample.s === sample.s && t - prevSample.t < REST_SAMPLE_S) return;
+    if (!clicked && prevSample && prevSample.x === sample.x && prevSample.y === sample.y && prevSample.s === sample.s && t - prevSample.t < REST_SAMPLE_S) return;
     samples.push(sample);
   };
 

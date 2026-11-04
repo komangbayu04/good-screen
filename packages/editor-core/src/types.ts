@@ -54,6 +54,8 @@ export interface CursorSample {
   y: number;
   /** Shape, when not the arrow (kept out of the arrow samples to stay small). */
   s?: Exclude<CursorShape, "arrow">;
+  /** A click here: the screen changed under the pointer after it stopped. */
+  c?: 1;
 }
 
 export interface Track {
@@ -160,7 +162,6 @@ export interface ScreenStyle {
   offsetX?: number;
   offsetY?: number;
   camera?: ScreenCamera;
-  cursor?: ScreenCursor;
   /**
    * In a frame of another shape (1:1, 4:5, 9:16), fill it with the recording and pan
    * with the pointer instead of shrinking the recording to fit. Needs a pointer track.
@@ -168,24 +169,11 @@ export interface ScreenStyle {
   reframe?: boolean;
 }
 
-export type CursorStyleId = "white" | "black" | "accent" | "highlight";
-
-/** Custom pointer drawn over the recorded one (tip on tip, larger, so it covers it). */
-export interface ScreenCursor {
-  show: boolean;
-  style: CursorStyleId;
-  /** Size relative to the recorded pointer. */
-  size: number;
-}
-
-export const DEFAULT_SCREEN_CURSOR: ScreenCursor = { show: true, style: "white", size: 2 };
-
 export const DEFAULT_SCREEN_STYLE: ScreenStyle = {
   background: { kind: "gradient", value: "dusk" },
   padding: 6,
   radius: 18,
   shadow: 0.6,
-  cursor: DEFAULT_SCREEN_CURSOR,
   reframe: true,
 };
 

@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { DEFAULT_CAMERA_LAYOUT, DEFAULT_SCREEN_STYLE, autoZoomSegments, trackEnd, useEditor, type Asset, type CursorSample, type EditCommand } from "@goodscreen/editor-core";
+import { DEFAULT_CAMERA_LAYOUT, DEFAULT_SCREEN_STYLE, clickZoomSegments, trackEnd, useEditor, type Asset, type CursorSample, type EditCommand } from "@goodscreen/editor-core";
 import { fileToAsset } from "./media";
 import { saveMedia } from "./persistence";
 
@@ -30,7 +30,7 @@ export async function importFiles(files: Iterable<File>) {
 /**
  * A finished screen take: the screen file becomes a timeline clip dressed with the
  * default screen style; the webcam file is linked to it (not a separate clip).
- * With a pointer track, zooms that follow the pointer are added where it works in one area.
+ * With a pointer track, a zoom that follows the pointer is added around its clicks.
  */
 export async function importScreenTake(screenFile: File, cameraFile: File | null, cursor?: CursorSample[]) {
   const screen = await fileToAsset(screenFile);
@@ -50,7 +50,7 @@ export async function importScreenTake(screenFile: File, cameraFile: File | null
   const start = trackEnd(useEditor.getState().project, "video");
   // Fresh WebM files often report no duration yet; the pointer track tells how long it ran.
   const duration = Number.isFinite(screen.duration) && screen.duration > 0 ? screen.duration : (cursor?.at(-1)?.t ?? 0) + 1;
-  const zooms: EditCommand[] = autoZoomSegments(cursor, duration).map((z) => ({
+  const zooms: EditCommand[] = clickZoomSegments(cursor, duration).map((z) => ({
     type: "addZoom",
     start: start + z.start,
     duration: z.end - z.start,

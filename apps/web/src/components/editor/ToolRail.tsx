@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { CircleDot, Image as ImageIcon, ImagePlus, MousePointer2, Plus, Type, Webcam, X, ZoomIn, type LucideIcon } from "lucide-react";
-import { DEFAULT_CAMERA_LAYOUT, DEFAULT_SCREEN_CURSOR, DEFAULT_SCREEN_STYLE, DEFAULT_ZOOM, useEditor, type EditCommand } from "@goodscreen/editor-core";
+import { DEFAULT_CAMERA_LAYOUT, DEFAULT_SCREEN_STYLE, DEFAULT_ZOOM, useEditor, type EditCommand } from "@goodscreen/editor-core";
 import { toast } from "@/lib/toast";
 import { addMediaLayer, addText, footageClip, screenClip, useTools, type ToolId } from "@/lib/tools";
 import { seek } from "@/lib/player-bridge";
@@ -124,7 +124,6 @@ function ToolReset({ tool }: { tool: ToolId }) {
                     radius: DEFAULT_SCREEN_STYLE.radius,
                     shadow: DEFAULT_SCREEN_STYLE.shadow,
                     reframe: DEFAULT_SCREEN_STYLE.reframe,
-                    cursor: DEFAULT_SCREEN_CURSOR,
                   },
                 },
               },
