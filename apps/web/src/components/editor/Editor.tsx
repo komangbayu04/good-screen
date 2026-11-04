@@ -82,7 +82,7 @@ export function Editor() {
 
   // Dev hook so automated checks can import generated media.
   useEffect(() => {
-    if (process.env.NODE_ENV === "development") (window as unknown as { __goodscreen: unknown }).__goodscreen = { importFiles, importScreenTake, trackCursor, createDetector, useEditor, useRecorder };
+    if (process.env.NODE_ENV === "development") (window as unknown as { __goodscreen: unknown }).__goodscreen = { importFiles, importScreenTake, trackCursor, createDetector, seek, useEditor, useRecorder };
   }, []);
 
   // Keyboard shortcuts.

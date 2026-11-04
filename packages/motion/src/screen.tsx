@@ -29,14 +29,14 @@ function zoomScaleAt(c: Clip, t: number) {
 
 /**
  * Zoom at time t from the zoom track, with motion blur proportional to how fast it changes.
- * `follow` gives the pointer focus at a timeline time, for zooms that follow the cursor.
+ * `follow` gives the zoom origin at a timeline time for a zoom that follows the cursor.
  */
-export function zoomAt(zoomClips: Clip[], t: number, fps: number, follow?: (t: number) => { x: number; y: number } | null): ZoomState {
+export function zoomAt(zoomClips: Clip[], t: number, fps: number, follow?: (t: number, zoom: Clip) => { x: number; y: number } | null): ZoomState {
   const active = zoomClips.find((c) => c.zoom && t >= c.start && t <= c.start + c.duration);
   if (!active) return NO_ZOOM;
   const scale = zoomScaleAt(active, t);
   const speed = Math.abs(zoomScaleAt(active, t + 1 / fps) - scale) * fps; // scale units per second
-  const focus = (active.zoom!.follow && follow?.(t)) || active.zoom!;
+  const focus = (active.zoom!.follow && follow?.(t, active)) || active.zoom!;
   return { scale, x: focus.x, y: focus.y, blur: Math.min(6, speed * 2.2) };
 }
 

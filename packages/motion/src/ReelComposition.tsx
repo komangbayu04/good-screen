@@ -7,7 +7,7 @@ import {
   DEFAULT_ADJUST,
   DEFAULT_ANIM_DURATION,
   DEFAULT_TRANSFORM,
-  cursorFocusAt,
+  followOrigin,
   propAt,
   type Asset,
   type Clip,
@@ -56,8 +56,9 @@ export function ReelComposition({ project }: ReelProps) {
   const screenActive = !!screenClip;
   // Following zooms look at the pointer of the screen recording playing at that moment.
   const pointer = screenClip ? assetOf(screenClip)?.cursor : undefined;
-  const zoom = zoomAt(overlay.filter((c) => c.zoom), t, fps, (at) =>
-    screenClip && pointer ? cursorFocusAt(pointer, screenClip.offset + (at - screenClip.start) * (screenClip.speed ?? 1)) : null,
+  const src = (at: number) => (screenClip ? screenClip.offset + (at - screenClip.start) * (screenClip.speed ?? 1) : at);
+  const zoom = zoomAt(overlay.filter((c) => c.zoom), t, fps, (at, z) =>
+    screenClip && pointer ? followOrigin(pointer, src(z.start), src(z.start + z.duration), z.zoom!.scale, src(at)) : null,
   );
   const layerZoom = screenActive ? NO_ZOOM : zoom;
 

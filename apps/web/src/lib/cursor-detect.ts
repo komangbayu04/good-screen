@@ -6,7 +6,13 @@ import type { CursorSample, CursorShape } from "@goodscreen/editor-core";
  */
 
 const FULL_SCAN_MS = 100;
-const DIFF_W = 480; // diff image width
+const DIFF_W = 480; // diff image width (at least; see DIFF_MAX_SHRINK)
+/**
+ * The diff image never shrinks the capture more than this: on a wide capture (several
+ * monitors, 5760 px) a fixed 480 px would shrink a pointer to under two pixels, too faint
+ * to show as a change, so it was never found.
+ */
+const DIFF_MAX_SHRINK = 4;
 const CELL = 8; // diff grid cell, in diff pixels
 const LUMA_DELTA = 28;
 /** How far the pointer may move between two frames and still be followed by the local search. */
@@ -36,7 +42,7 @@ const REST_SAMPLE_S = 0.25;
  * arrives, so it must have rested this long first (s), and the change must be this close
  * (share of the recording's width) or cover this much of the screen (a new page).
  */
-const CLICK_REST_S = 0.2;
+const CLICK_REST_S = 0.15;
 const CLICK_NEAR = 0.08;
 const CLICK_PAGE = 0.3;
 
@@ -365,7 +371,7 @@ export function createDetector() {
 
   /** Small changed spots since the previous full scan, in capture pixels. */
   const changedSpots = () => {
-    const dw = Math.min(DIFF_W, vw);
+    const dw = Math.min(vw, Math.max(DIFF_W, Math.ceil(vw / DIFF_MAX_SHRINK)));
     const dh = Math.floor((vh / vw) * dw);
     if (prev && prev.length !== dw * dh) prev = null;
     // A small copy: each pixel the average of its block (a 2-pixel grid of it, enough for a diff).
