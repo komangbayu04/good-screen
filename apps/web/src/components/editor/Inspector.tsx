@@ -32,7 +32,6 @@ export function Inspector() {
         </Group>
         <OutputSize />
         <Files />
-        <p className="text-meta leading-relaxed text-muted">Select a clip on the timeline to edit it.</p>
       </div>
     </div>
   );

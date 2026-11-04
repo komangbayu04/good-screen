@@ -143,7 +143,6 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
             {phase.message}
           </p>
         )}
-        {empty && <p className="text-meta text-muted">The timeline is empty. Add a video, then export.</p>}
 
         <div className="flex gap-2 pt-1">
           {phase.kind === "rendering" ? (
