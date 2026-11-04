@@ -1,18 +1,9 @@
-import { useEditor, type Asset, type Project } from "@goodscreen/editor-core";
+import { useEditor, type Project } from "@goodscreen/editor-core";
 import { deleteMedia } from "./persistence";
 
 /** Webcam takes recorded alongside a screen recording (they belong to that recording). */
 const linkedCameras = (project: Project, assetId: string) =>
   [...new Set(project.clips.filter((c) => c.assetId === assetId && c.screen?.camera).map((c) => c.screen!.camera!.assetId))];
-
-/**
- * The files a person manages in a project: recordings and uploads. A recording's own
- * webcam take isn't listed separately: it goes with its recording.
- */
-export function projectFiles(project: Project): Asset[] {
-  const cameras = new Set(project.clips.flatMap((c) => (c.screen?.camera ? [c.screen.camera.assetId] : [])));
-  return project.assets.filter((a) => a.kind !== "motion" && !cameras.has(a.id));
-}
 
 /**
  * Deletes a whole project for good, with every recording and upload in it (their stored

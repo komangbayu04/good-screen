@@ -218,8 +218,31 @@ function score(luma: Uint8ClampedArray, stride: number, rows: number, t: Templat
   return best;
 }
 
-/** A match: hotspot, template, score, and how complete the shape was (see `score`). */
-type Hit = { x: number; y: number; t: Template; s: number; cover: number };
+/**
+ * A match: hotspot, template, score, how complete the shape was (see `score`), and the
+ * brightness under the template's points (to tell a resting pointer from a look-alike).
+ */
+type Hit = { x: number; y: number; t: Template; s: number; cover: number; sig: Uint8Array };
+
+/**
+ * A match that stays put while its own pixels change isn't the pointer: something moved
+ * over or off it (a play icon or a button the pointer was on). Real pointers are drawn on
+ * top and don't change while they rest. Share of points that must change to call it.
+ */
+const DECOY_CHANGE = 0.04;
+/** How long a look-alike is ignored once found out, seconds. */
+const DECOY_FOR_S = 3;
+/** A match that never moved is dropped after this many full scans with motion this far (px) from it. */
+const STILL_SCANS = 3;
+const STILL_FAR = 32;
+
+/** Share of points whose brightness moved by more than 40 between two signatures. */
+function changedShare(a: Uint8Array, b: Uint8Array) {
+  if (a.length !== b.length || !a.length) return 0;
+  let n = 0;
+  for (let i = 0; i < a.length; i++) if (Math.abs(a[i]! - b[i]!) > 40) n++;
+  return n / a.length;
+}
 
 export interface CursorTracker {
   /** Stops tracking and returns the samples so far. */
@@ -240,8 +263,22 @@ export function trackCursor(track: MediaStreamTrack, time: () => number | null):
   const small = document.createElement("canvas").getContext("2d", { willReadFrequently: true })!;
   const crop = document.createElement("canvas").getContext("2d", { willReadFrequently: true })!;
   let prev: Uint8Array | null = null;
-  /** Last hotspot, its template, and how far it moved since the frame before (per frame). */
-  let last: { x: number; y: number; t: Template; vx: number; vy: number } | null = null;
+  /** Last hotspot, its template, how far it moved since the frame before, and its `sig`. */
+  let last: {
+    x: number;
+    y: number;
+    t: Template;
+    vx: number;
+    vy: number;
+    sig: Uint8Array;
+    /** Has it moved since it was found, full scans it sat still while things moved elsewhere, its first sample. */
+    moved: boolean;
+    idle: number;
+    from: number;
+  } | null = null;
+  /** Look-alikes found out recently (see DECOY_CHANGE): never matched until `until`. */
+  let decoys: { x: number; y: number; until: number }[] = [];
+  let now = 0;
   const samples: CursorSample[] = [];
 
   /** Best match among `templates` with its hotspot inside [x0, x1] × [y0, y1] (capture pixels). */
@@ -259,12 +296,14 @@ export function trackCursor(track: MediaStreamTrack, time: () => number | null):
     const rgba = crop.getImageData(0, 0, sw, sh).data;
     const luma = new Uint8ClampedArray(sw * sh);
     for (let i = 0, p = 0; p < luma.length; i += 4, p++) luma[p] = (rgba[i]! * 77 + rgba[i + 1]! * 150 + rgba[i + 2]! * 29) >> 8;
-    let best: Hit | null = null;
+    let best: Omit<Hit, "sig"> | null = null;
     let bestRank = -Infinity;
     const parts = { cover: 0 };
+    const isDecoy = (hx: number, hy: number) => decoys.some((d) => Math.abs(d.x - hx) <= 4 && Math.abs(d.y - hy) <= 4);
     for (const t of templates)
       for (let hy = Math.ceil(y0); hy <= y1; hy++)
         for (let hx = Math.ceil(x0); hx <= x1; hx++) {
+          if (decoys.length && isDecoy(hx, hy)) continue;
           const s = score(luma, sw, sh, t, hx - t.hx - sx, hy - t.hy - sy, parts);
           if (s < MIN_SCORE) continue;
           // Larger passing templates win: a small one can also fit a corner of a big pointer,
@@ -277,7 +316,13 @@ export function trackCursor(track: MediaStreamTrack, time: () => number | null):
             best = { x: hx, y: hy, t, s, cover: parts.cover };
           }
         }
-    return best;
+    if (!best) return null;
+    // Brightness under the match's points, compared next frame to spot a look-alike.
+    const { t, x, y } = best;
+    const pts = [...t.fill, ...t.edge];
+    const sig = new Uint8Array(pts.length / 2);
+    for (let i = 0; i < pts.length; i += 2) sig[i / 2] = luma[(y - t.hy - sy + pts[i + 1]!) * sw + (x - t.hx - sx + pts[i]!)]!;
+    return { ...best, sig };
   };
 
   /** Small changed spots since the previous full scan, in capture pixels. */
@@ -349,6 +394,8 @@ export function trackCursor(track: MediaStreamTrack, time: () => number | null):
   /** One frame at recording time `t`; `full` adds the diff scan (≈10×/s). */
   const tick = (t: number, full: boolean) => {
     if (!vw || !vh) return;
+    now = t;
+    if (decoys.length) decoys = decoys.filter((d) => d.until > now);
     let found: Hit | null = null;
     if (last) {
       // 1a. Where it should be now (last position plus last move), same template: the
@@ -366,22 +413,66 @@ export function trackCursor(track: MediaStreamTrack, time: () => number | null):
         found = search(found.x - 2, found.y - 2, found.x + 2, found.y + 2, nearScale(found.t.scale), found) ?? found;
       }
     }
-    // 2. In the spots that changed; any shape and scale if the pointer was lost.
+    // 1d. Still in the same place as the same shape, but the pixels under it changed:
+    //     that's a look-alike (a play icon, a button) the pointer was on, not the pointer.
+    const resting = !!found && !!last && found.x === last.x && found.y === last.y && found.t === last.t;
+    if (found && last && resting && changedShare(found.sig, last.sig) > DECOY_CHANGE) {
+      decoys.push({ x: found.x, y: found.y, until: t + DECOY_FOR_S });
+      found = null;
+      last = null;
+    }
+    // 2. In the spots that changed; any shape and scale if the pointer was lost. While the
+    //    match rests, a clear pointer moving elsewhere wins too (the resting one may be a
+    //    look-alike that never changes, with the real pointer gone off it).
     if (full) {
       const spots = changedSpots();
-      if (!found)
+      const lockedAt = found;
+      if (!found || resting)
         for (const s of spots.slice(0, 4)) {
-          let hit = search(s.x0, s.y0, s.x1, s.y1, last ? nearScale(last.t.scale) : TEMPLATES, last ?? undefined) ?? (last ? search(s.x0, s.y0, s.x1, s.y1, TEMPLATES) : null);
-          if (hit && !last && hit.cover < ACQUIRE_COVER) hit = null;
-          if (hit && (!found || hit.s > found.s)) found = hit;
+          if (lockedAt && lockedAt.x >= s.x0 && lockedAt.x <= s.x1 && lockedAt.y >= s.y0 && lockedAt.y <= s.y1) continue;
+          let hit = lockedAt
+            ? search(s.x0, s.y0, s.x1, s.y1, TEMPLATES)
+            : (search(s.x0, s.y0, s.x1, s.y1, last ? nearScale(last.t.scale) : TEMPLATES, last ?? undefined) ?? (last ? search(s.x0, s.y0, s.x1, s.y1, TEMPLATES) : null));
+          if (hit && (!last || lockedAt) && hit.cover < ACQUIRE_COVER) hit = null;
+          if (hit && (!found || found === lockedAt || hit.s > found.s)) found = hit;
         }
+      if (lockedAt && found !== lockedAt) {
+        // Moved off a resting match: that one was a look-alike.
+        decoys.push({ x: lockedAt.x, y: lockedAt.y, until: t + DECOY_FOR_S });
+        last = null;
+      } else if (lockedAt && last && !last.moved) {
+        // Found where the pointer just left (a play icon it had covered) and never moved
+        // since, while something keeps moving elsewhere: that's the pointer, this isn't.
+        const far = (s: { x0: number; y0: number; x1: number; y1: number }) =>
+          Math.max(s.x0 - lockedAt.x, lockedAt.x - s.x1, s.y0 - lockedAt.y, lockedAt.y - s.y1) > STILL_FAR;
+        last.idle = spots.some(far) ? last.idle + 1 : 0;
+        if (last.idle >= STILL_SCANS) {
+          decoys.push({ x: lockedAt.x, y: lockedAt.y, until: t + DECOY_FOR_S });
+          samples.length = last.from; // it was never the pointer
+          last = null;
+          found = null;
+        }
+      }
     }
     if (!found) {
       // One blurred frame isn't a lost pointer; give up only when the full scan misses too.
       if (full) last = null;
       return;
     }
-    last = { x: found.x, y: found.y, t: found.t, vx: last ? found.x - last.x : 0, vy: last ? found.y - last.y : 0 };
+    // While it rests, keep comparing against how it looked when it stopped (slow changes add up).
+    const sig = last && found.x === last.x && found.y === last.y && found.t === last.t ? last.sig : found.sig;
+    const same = !!last && found.x === last.x && found.y === last.y;
+    last = {
+      x: found.x,
+      y: found.y,
+      t: found.t,
+      vx: last ? found.x - last.x : 0,
+      vy: last ? found.y - last.y : 0,
+      sig,
+      moved: !!last && (last.moved || !same),
+      idle: last && same ? last.idle : 0,
+      from: last ? last.from : samples.length,
+    };
     const sample: CursorSample = { t: Math.round(t * 1000) / 1000, x: Math.round((found.x / vw) * 1e5) / 1e5, y: Math.round((found.y / vh) * 1e5) / 1e5 };
     if (found.t.shape !== "arrow") sample.s = found.t.shape;
     // A resting pointer needs only a sample now and then; a moving one gets every frame.
