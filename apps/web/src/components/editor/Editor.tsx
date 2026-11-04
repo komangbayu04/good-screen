@@ -12,6 +12,7 @@ import { ExportDialog } from "./ExportDialog";
 import { FloatingControls } from "./FloatingControls";
 import { useRecorder } from "@/lib/recorder";
 import { trackCursor } from "@/lib/cursor-track";
+import { createDetector } from "@/lib/cursor-detect";
 import { addText, useTools } from "@/lib/tools";
 import { seek, togglePlay } from "@/lib/player-bridge";
 import { PlayerControls, Preview } from "./Preview";
@@ -81,7 +82,7 @@ export function Editor() {
 
   // Dev hook so automated checks can import generated media.
   useEffect(() => {
-    if (process.env.NODE_ENV === "development") (window as unknown as { __goodscreen: unknown }).__goodscreen = { importFiles, importScreenTake, trackCursor, useEditor, useRecorder };
+    if (process.env.NODE_ENV === "development") (window as unknown as { __goodscreen: unknown }).__goodscreen = { importFiles, importScreenTake, trackCursor, createDetector, useEditor, useRecorder };
   }, []);
 
   // Keyboard shortcuts.

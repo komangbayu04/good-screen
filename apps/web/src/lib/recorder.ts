@@ -97,7 +97,7 @@ function mixAudio(streams: MediaStream[]) {
 const MIC: MediaTrackConstraints = { noiseSuppression: true, echoCancellation: true, autoGainControl: true };
 
 function releaseStreams() {
-  take?.cursor?.stop();
+  void take?.cursor?.stop();
   take?.owned.forEach((s) => s.getTracks().forEach((t) => t.stop()));
   take?.closeAudio();
 }
@@ -276,7 +276,7 @@ export const useRecorder = create<RecorderState>((set, get) => ({
         releaseStreams();
         take = null;
         try {
-          await finish(current.id, current.opts.source, current.startedAt || Date.now(), current.chunks, current.recorders.screen?.mimeType ?? "", cursor);
+          await finish(current.id, current.opts.source, current.startedAt || Date.now(), current.chunks, current.recorders.screen?.mimeType ?? "", await cursor);
           set({ status: "idle", source: null, error: null });
         } catch (e) {
           set({ status: "idle", source: null, error: `The recording was partly saved and can be recovered (${e instanceof Error ? e.message : "import failed"}).` });
