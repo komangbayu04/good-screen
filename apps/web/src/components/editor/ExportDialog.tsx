@@ -81,7 +81,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
         abort.current?.abort();
         onClose();
       }}
-      className="m-auto w-[min(420px,calc(100%-32px))] frost rounded-[20px] border border-ink/[0.14] bg-panel p-0 text-fg shadow-2xl backdrop:bg-black/60 open:motion-safe:starting:scale-[0.97] open:starting:opacity-0 transition-[opacity,scale,display,overlay] duration-200 ease-[var(--ease-out)] transition-discrete"
+      className="m-auto w-[min(420px,calc(100%-32px))] rounded-[20px] border border-ink/[0.08] bg-panel p-0 text-fg shadow-2xl backdrop:bg-black/60 open:motion-safe:starting:scale-[0.97] open:starting:opacity-0 transition-[opacity,scale,display,overlay] duration-200 ease-[var(--ease-out)] transition-discrete"
       aria-labelledby="export-title"
     >
       <div className="flex items-center justify-between px-5 pt-5">

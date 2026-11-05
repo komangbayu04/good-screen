@@ -153,8 +153,7 @@ export function PlayerControls() {
   const edges = [...new Set(project.clips.flatMap((c) => [c.start, c.start + c.duration]))].sort((a, b) => a - b);
 
   return (
-    // Glass bar: it sits on the background photo, so its text needs a surface of its own.
-    <div className="glass mt-1 grid h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 rounded-2xl px-2 sm:gap-2 sm:px-3">
+    <div className="grid h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 border-t border-ink/[0.08] px-2 sm:gap-2 sm:px-3">
       <span className="font-mono text-xs whitespace-nowrap text-fg/90 tabular-nums">
         {formatTime(playhead)} <span className="text-muted">/ {formatTime(total)}</span>
       </span>
@@ -236,7 +235,7 @@ function FrameMenu({ placement = "up", compact }: { placement?: "up" | "down"; c
       <div
         inert={!open}
         aria-hidden={!open}
-        className={`motion-slide absolute z-30 w-64 space-y-3 ${placement === "up" ? "right-0 bottom-full mb-2 origin-bottom-right" : "top-full left-0 mt-2 origin-top-left"} frost rounded-2xl border border-line bg-panel p-3 shadow-2xl transition-[opacity,scale,translate] ease-[var(--ease-out)] ${
+        className={`motion-slide absolute z-30 w-64 space-y-3 ${placement === "up" ? "right-0 bottom-full mb-2 origin-bottom-right" : "top-full left-0 mt-2 origin-top-left"} rounded-2xl border border-line bg-panel p-3 shadow-2xl transition-[opacity,scale,translate] ease-[var(--ease-out)] ${
           open ? "scale-100 opacity-100 duration-200" : "pointer-events-none translate-y-1 scale-95 opacity-0 duration-150"
         }`}
       >

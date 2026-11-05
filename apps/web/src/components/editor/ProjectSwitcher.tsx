@@ -47,7 +47,7 @@ export function ProjectSwitcher() {
         <div
           role="dialog"
           aria-label="Projects"
-          className="absolute top-full left-0 z-50 mt-2 w-[min(420px,calc(100vw-24px))] origin-top-left frost overflow-hidden rounded-[18px] border border-ink/[0.14] bg-panel shadow-2xl transition-[opacity,scale] duration-150 ease-out starting:scale-[0.97] starting:opacity-0"
+          className="absolute top-full left-0 z-50 mt-2 w-[min(420px,calc(100vw-24px))] origin-top-left overflow-hidden rounded-[18px] border border-ink/[0.08] bg-panel shadow-2xl transition-[opacity,scale] duration-150 ease-out starting:scale-[0.97] starting:opacity-0"
         >
           <ProjectBrowser onDone={() => useProjectSwitcher.setState({ open: false })} />
         </div>

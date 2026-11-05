@@ -148,7 +148,7 @@ export function Editor() {
 
   return (
     <div
-      className="flex h-dvh flex-col overflow-hidden pt-[env(safe-area-inset-top)]"
+      className="flex h-dvh flex-col overflow-hidden bg-bg pt-[env(safe-area-inset-top)]"
       onDragOver={(e) => {
         e.preventDefault();
         setDragging(true);
@@ -203,14 +203,14 @@ export function Editor() {
       )}
 
       {desktop === false && (
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col bg-black">
           <div className="min-h-0 flex-1">
             <Preview
               mobile={{ onOpenMenu: () => setSheet({ kind: "library", menu: "project" }) }}
             />
           </div>
           {/* One continuous surface down to the screen edge: no gaps between tools. */}
-          <section className="frost flex shrink-0 flex-col rounded-t-[22px] bg-panel pb-[env(safe-area-inset-bottom)] shadow-[inset_0_1px_0_rgb(255_255_255/0.14)]">
+          <section className="flex shrink-0 flex-col rounded-t-[22px] bg-panel pb-[env(safe-area-inset-bottom)] shadow-[inset_0_1px_0_rgb(255_255_255/0.14)]">
             <ResizeHandle
               height={mobileTimelineH}
               onChange={setMobileTimelineH}
@@ -254,7 +254,7 @@ export function Editor() {
       <div role="status" aria-live="polite" className="contents">
         {toastMessage && (
         <div
-          className="motion-slide fixed bottom-24 left-1/2 z-50 w-[calc(100%-32px)] max-w-md -translate-x-1/2 frost rounded-2xl border border-line bg-panel px-4 py-3 text-sm shadow-2xl transition-[translate,opacity] duration-250 ease-[var(--ease-out)] starting:translate-y-3 starting:opacity-0 lg:bottom-6"
+          className="motion-slide fixed bottom-24 left-1/2 z-50 w-[calc(100%-32px)] max-w-md -translate-x-1/2 rounded-2xl border border-line bg-panel-2 px-4 py-3 text-sm shadow-2xl transition-[translate,opacity] duration-250 ease-[var(--ease-out)] starting:translate-y-3 starting:opacity-0 lg:bottom-6"
         >
           {toastMessage}
         </div>
@@ -268,7 +268,7 @@ function Header({ desktop, onProjects, onExport }: { desktop: boolean; onProject
   const name = useEditor((s) => s.project.name);
   return (
     // The project is the header's anchor on the left; the one action (Export) sits on the right.
-    <header className="flex h-12 shrink-0 items-center justify-between gap-2 bg-black/30 px-3 lg:h-16 lg:bg-transparent lg:px-4">
+    <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-divider bg-bg px-3 lg:h-16 lg:px-4">
       <div className="flex min-w-0 items-center gap-2">
         {/* Projects sit above the workspaces: switch, filter by tag, or start a new one. */}
         {desktop ? (

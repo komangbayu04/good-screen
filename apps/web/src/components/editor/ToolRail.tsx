@@ -45,8 +45,8 @@ export function ToolRail({ onRecord }: { onRecord: () => void }) {
   }, [active]);
 
   return (
-    <nav aria-label="Alat kanvas" className="flex w-11 shrink-0 flex-col items-center pt-2">
-      <div className="glass flex flex-col gap-1 rounded-2xl p-1">
+    <nav aria-label="Canvas tools" className="flex w-10 shrink-0 flex-col items-center pt-2">
+      <div className="flex flex-col gap-1">
         {/* Record first, then layers: move them, add text, add a picture. Then the canvas tools. */}
         <RailButton icon={CircleDot} label="Record" accent onClick={onRecord} />
         <span className="mx-2 my-0.5 h-px bg-ink/[0.08]" aria-hidden="true" />
